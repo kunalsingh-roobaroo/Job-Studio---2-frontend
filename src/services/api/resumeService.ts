@@ -1,0 +1,312 @@
+/**
+ * Resume API Service
+ * API calls for resume upload and LinkedIn optimization
+ */
+
+import apiClient from './client';
+import type {
+  GenerateUploadUrlRequest,
+  GenerateUploadUrlResponse,
+  ResumeEvaluationRequest,
+  ResumeEvaluationResponse,
+  ResumeItemSummary,
+  ResumeItem,
+  LinkedInOptimizationResponse,
+  LinkedInAuditResponse,
+  LinkedInAudit,
+  UnifiedLinkedInAudit,
+  ParseResumeResponse,
+  ParsedProfile,
+  LinkedInCopilotResponse,
+} from './types';
+
+// Types for LinkedIn project creation
+interface CreateLinkedInProjectRequest {
+  resume_s3_key: string;
+  job_title?: string;
+  company?: string;
+  industry?: string;
+  linkedin_url?: string;
+}
+
+/**
+ * Generate a presigned S3 URL for uploading a resume file
+ */
+export async function generateUploadUrl(
+  fileName: string,
+  contentType?: string,
+  expiresIn?: number
+): Promise<GenerateUploadUrlResponse> {
+  const request: GenerateUploadUrlRequest = {
+    file_name: fileName,
+    content_type: contentType,
+    expires_in: expiresIn,
+  };
+  const response = await apiClient.post<GenerateUploadUrlResponse>(
+    '/resumes/generate-upload-url',
+    request
+  );
+  return response.data;
+}
+
+/**
+ * Upload a file directly to S3 using a presigned URL
+ */
+export async function uploadResumeToS3(file: File, uploadUrl: string): Promise<void> {
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': file.type },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to upload file to S3: ${response.statusText}`);
+  }
+}
+
+/**
+ * Create a LinkedIn project and parse resume using The Architect
+ * Returns structured profile data for immediate preview
+ */
+export async function createLinkedInProject(
+  data: CreateLinkedInProjectRequest
+): Promise<ParseResumeResponse> {
+  const response = await apiClient.post<ParseResumeResponse>(
+    '/resumes/create-linkedin-project',
+    data,
+    { timeout: 120000 } // 2 min timeout for AI parsing
+  );
+  return response.data;
+}
+
+/**
+ * Combined upload and create LinkedIn project flow
+ * This parses the resume and returns structured profile data
+ */
+export async function uploadAndCreateLinkedInProject(
+  file: File,
+  options?: {
+    job_title?: string;
+    company?: string;
+    industry?: string;
+    linkedin_url?: string;
+  }
+): Promise<{ projectId: string; s3Key: string; parsedProfile: ParsedProfile }> {
+  // Step 1: Get presigned URL
+  const { uploadUrl, key } = await generateUploadUrl(file.name, file.type);
+
+  // Step 2: Upload to S3
+  await uploadResumeToS3(file, uploadUrl);
+
+  // Step 3: Create LinkedIn project and parse resume
+  const result = await createLinkedInProject({
+    resume_s3_key: key,
+    ...options,
+  });
+
+  return {
+    projectId: result.id,
+    s3Key: key,
+    parsedProfile: result.parsedProfile,
+  };
+}
+
+/**
+ * Submit a resume for evaluation with job details
+ */
+export async function evaluateResume(data: ResumeEvaluationRequest): Promise<ResumeEvaluationResponse> {
+  const response = await apiClient.post<ResumeEvaluationResponse>('/resumes/evaluate-resume', data);
+  return response.data;
+}
+
+/**
+ * List resumes with summary information only
+ */
+export async function listResumes(limit?: number): Promise<ResumeItemSummary[]> {
+  const response = await apiClient.get<ResumeItemSummary[]>('/resumes/', {
+    params: limit ? { limit } : undefined,
+  });
+  return response.data;
+}
+
+/**
+ * Fetch a full resume item by ID
+ */
+export async function getResume(resumeId: string): Promise<ResumeItem> {
+  const response = await apiClient.get<ResumeItem>(`/resumes/${resumeId}`);
+  return response.data;
+}
+
+/**
+ * Generate a complete LinkedIn optimization plan for an existing resume
+ */
+export async function optimizeLinkedInProfile(resumeId: string): Promise<LinkedInOptimizationResponse> {
+  const response = await apiClient.post<LinkedInOptimizationResponse>(
+    `/resumes/${resumeId}/linkedin-optimization`,
+    {},
+    { timeout: 120000 }
+  );
+  return response.data;
+}
+
+/**
+ * Audit LinkedIn profile from PDF export
+ * Generates comprehensive review and improve modules
+ */
+export async function auditLinkedInProfile(resumeId: string): Promise<LinkedInAuditResponse> {
+  const response = await apiClient.post<LinkedInAuditResponse>(
+    `/resumes/${resumeId}/linkedin-audit`,
+    {},
+    { timeout: 120000 }
+  );
+  return response.data;
+}
+
+/**
+ * Extract and audit LinkedIn profile from URL using Unipile API
+ * Accepts LinkedIn URL or username and returns comprehensive audit
+ */
+export async function extractLinkedInFromUrl(
+  linkedinUrl: string,
+  options?: {
+    target_role?: string;
+  }
+): Promise<{ projectId: string; audit: LinkedInAudit | UnifiedLinkedInAudit }> {
+  const result = await apiClient.post<LinkedInAuditResponse>(
+    '/linkedin/extract-from-url',
+    {
+      linkedin_url: linkedinUrl,
+      target_role: options?.target_role,
+    },
+    { timeout: 120000 }
+  );
+
+  return {
+    projectId: result.data.id,
+    audit: result.data.audit,
+  };
+}
+
+/**
+ * Review LinkedIn profile from PDF export
+ * Upload LinkedIn PDF and get audit with scores
+ */
+export async function reviewLinkedInProfile(
+  file: File,
+  options?: {
+    target_role?: string;
+  }
+): Promise<{ projectId: string; s3Key: string; audit: LinkedInAudit | UnifiedLinkedInAudit }> {
+  // Step 1: Get presigned URL
+  const { uploadUrl, key } = await generateUploadUrl(file.name, file.type);
+
+  // Step 2: Upload to S3
+  await uploadResumeToS3(file, uploadUrl);
+
+  // Step 3: Review LinkedIn profile
+  const result = await apiClient.post<LinkedInAuditResponse>(
+    '/linkedin/review-profile',
+    {
+      linkedin_pdf_s3_key: key,
+      target_role: options?.target_role,
+    },
+    { timeout: 120000 }
+  );
+
+  return {
+    projectId: result.data.id,
+    s3Key: key,
+    audit: result.data.audit,
+  };
+}
+
+/**
+ * Improve LinkedIn profile from PDF export
+ * Upload LinkedIn PDF and get before/after rewrites
+ */
+export async function improveLinkedInProfile(
+  file: File,
+  options?: {
+    target_role?: string;
+  }
+): Promise<{ projectId: string; s3Key: string; audit: LinkedInAudit | UnifiedLinkedInAudit }> {
+  // Step 1: Get presigned URL
+  const { uploadUrl, key } = await generateUploadUrl(file.name, file.type);
+
+  // Step 2: Upload to S3
+  await uploadResumeToS3(file, uploadUrl);
+
+  // Step 3: Improve LinkedIn profile
+  const result = await apiClient.post<LinkedInAuditResponse>(
+    '/linkedin/improve-profile',
+    {
+      linkedin_pdf_s3_key: key,
+      target_role: options?.target_role,
+    },
+    { timeout: 120000 }
+  );
+
+  return {
+    projectId: result.data.id,
+    s3Key: key,
+    audit: result.data.audit,
+  };
+}
+
+/**
+ * Combined upload and evaluate flow
+ */
+export async function uploadAndEvaluateResume(
+  file: File,
+  jobDetails: Omit<ResumeEvaluationRequest, 'resume_s3_key'>
+): Promise<{ resumeId: string; s3Key: string; evaluation: ResumeEvaluationResponse }> {
+  const { uploadUrl, key } = await generateUploadUrl(file.name, file.type);
+  await uploadResumeToS3(file, uploadUrl);
+  const evaluation = await evaluateResume({ ...jobDetails, resume_s3_key: key });
+  return { resumeId: evaluation.id, s3Key: key, evaluation };
+}
+
+const resumeService = {
+  generateUploadUrl,
+  uploadResumeToS3,
+  createLinkedInProject,
+  uploadAndCreateLinkedInProject,
+  evaluateResume,
+  uploadAndEvaluateResume,
+  listResumes,
+  getResume,
+  optimizeLinkedInProfile,
+  auditLinkedInProfile,
+  extractLinkedInFromUrl,
+  reviewLinkedInProfile,
+  improveLinkedInProfile,
+  chatWithLinkedInCopilot,
+};
+
+/**
+ * Chat with LinkedIn Copilot
+ */
+export async function chatWithLinkedInCopilot(
+  projectId: string,
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  sectionId?: string
+): Promise<{ message: string; suggestions: string[] }> {
+  try {
+    const response = await apiClient.post<LinkedInCopilotResponse>(
+      '/linkedin/copilot',
+      {
+        project_id: projectId,
+        user_message: message,
+        conversation_history: history,
+        section_id: sectionId,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Copilot chat error:", error);
+    throw error;
+  }
+}
+
+
+export default resumeService;
