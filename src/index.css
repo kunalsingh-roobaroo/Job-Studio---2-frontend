@@ -281,3 +281,210 @@ html {
   outline: 2px solid var(--primary-500);
   outline-offset: 2px;
 }
+
+
+/* =============================================================================
+ * CHATBOT ANIMATIONS
+ * =============================================================================
+ */
+
+/* Orb animations */
+@keyframes orb-hue-rotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes orb-hue-rotate-blur {
+  0% {
+    filter: blur(var(--orb-blur, 8px)) hue-rotate(0deg);
+  }
+  100% {
+    filter: blur(var(--orb-blur, 8px)) hue-rotate(360deg);
+  }
+}
+
+.orb-circle-1 {
+  animation: orb-float-1 8s ease-in-out infinite;
+}
+
+.orb-circle-2 {
+  animation: orb-float-2 6s ease-in-out infinite;
+}
+
+.orb-circle-3 {
+  animation: orb-float-3 10s ease-in-out infinite;
+}
+
+.orb-circle-4 {
+  animation: orb-float-4 7s ease-in-out infinite;
+}
+
+.orb-circle-5 {
+  animation: orb-float-5 9s ease-in-out infinite;
+}
+
+@keyframes orb-float-1 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(15%, -15%);
+  }
+  50% {
+    transform: translate(-10%, 10%);
+  }
+  75% {
+    transform: translate(10%, 15%);
+  }
+}
+
+@keyframes orb-float-2 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(-20%, 10%);
+  }
+  66% {
+    transform: translate(15%, -15%);
+  }
+}
+
+@keyframes orb-float-3 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(10%, 20%);
+  }
+  40% {
+    transform: translate(-15%, -10%);
+  }
+  60% {
+    transform: translate(20%, -15%);
+  }
+  80% {
+    transform: translate(-10%, 15%);
+  }
+}
+
+@keyframes orb-float-4 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-25%, -20%);
+  }
+}
+
+@keyframes orb-float-5 {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  30% {
+    transform: translate(20%, -10%);
+  }
+  70% {
+    transform: translate(-15%, 20%);
+  }
+}
+
+/* Intro animations */
+@keyframes orb-intro-animation {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes text-blur-in {
+  0% {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes composer-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes user-message-slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes image-bounce-animation {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.orb-intro {
+  animation: orb-intro-animation 1s ease-out;
+}
+
+.text-blur-intro {
+  animation: text-blur-in 0.8s ease-out 0.5s both;
+}
+
+.text-blur-intro-delay {
+  animation: text-blur-in 0.8s ease-out 0.8s both;
+}
+
+.composer-intro {
+  animation: composer-slide-up 0.6s ease-out 0.3s both;
+}
+
+.user-message-enter {
+  animation: user-message-slide-in 0.3s ease-out;
+}
+
+.image-bounce {
+  animation: image-bounce-animation 0.4s ease-out;
+}
+
+/* Bounce subtle animation */
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle 1s ease-in-out infinite;
+}

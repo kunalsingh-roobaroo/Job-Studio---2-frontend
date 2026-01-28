@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { Send, X, MessageSquare, FileText, Pen, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 

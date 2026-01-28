@@ -138,7 +138,7 @@ export default function LinkedInReview() {
               {isExtracting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Extracting...
+                  Analyzing Profile (this may take 2-3 minutes)...
                 </>
               ) : (
                 "Extract Profile"
@@ -146,7 +146,10 @@ export default function LinkedInReview() {
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            We'll automatically extract your profile data using the URL
+            {isExtracting 
+              ? "Fetching profile data and running comprehensive analysis with AI..." 
+              : "We'll automatically extract your profile data using the URL"
+            }
           </p>
         </div>
 

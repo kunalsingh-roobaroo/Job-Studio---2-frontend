@@ -177,7 +177,7 @@ export async function extractLinkedInFromUrl(
       linkedin_url: linkedinUrl,
       target_role: options?.target_role,
     },
-    { timeout: 120000 }
+    { timeout: 300000 } // 5 minutes - LinkedIn URL analysis makes 3 LLM calls (breakdown, checklist, experience)
   );
 
   return {

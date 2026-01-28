@@ -3,7 +3,6 @@ import {
     ChevronDown,
     Sparkles,
     CircleAlert,
-    ChevronRight,
     Type,
     User,
     Briefcase,
@@ -12,7 +11,6 @@ import {
     Globe,
     LayoutTemplate,
     CheckCircle2,
-    XCircle,
     ArrowRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"

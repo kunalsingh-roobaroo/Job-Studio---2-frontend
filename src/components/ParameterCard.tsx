@@ -1,4 +1,3 @@
-import * as React from "react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check, AlertCircle, ChevronRight, Sparkles } from "lucide-react"
@@ -11,7 +10,6 @@ interface ParameterCardProps {
     onAutoFix: () => void
     isDark?: boolean
     accentColor?: string
-    index?: number
 }
 
 export function ParameterCard({
@@ -21,7 +19,6 @@ export function ParameterCard({
     onAutoFix,
     isDark = false,
     accentColor = "var(--primary-500)",
-    index = 0
 }: ParameterCardProps) {
     const isPassed = item.status === "pass"
 

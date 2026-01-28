@@ -393,6 +393,7 @@ export interface OptimizationReport {
 export interface UnifiedLinkedInAudit {
   userProfile: LinkedInUserProfile;
   optimizationReport: OptimizationReport;
+  checklistAudit?: ChecklistBasedAudit;  // NEW: Include checklist audit for enhanced scoring display
 }
 
 // ==================== NEW: Checklist-Based Scoring (100-Point System) ====================
@@ -402,6 +403,30 @@ export interface ChecklistCriterion {
   status: "pass" | "fail" | "warning";
   points: number;
   reasoning: string;
+  actionableFix?: string;  // NEW: Detailed, personalized fix instructions from LLM (250-400 words)
+}
+
+export interface ExperienceEntry {
+  jobTitle: string;
+  company: string;
+  duration?: string;
+  summary: string;  // Brief analysis of this specific experience
+  score: number;  // Score for this specific experience
+  maxScore: number;
+  checklistItems: ChecklistCriterion[];
+}
+
+export interface BannerSection {
+  id: string;  // "profile_photo", "banner", "headline", etc.
+  title: string;  // "Profile Photo", "Banner", "Headline", etc.
+  score: number;  // Actual score earned
+  maxScore: number;  // Maximum possible score
+  breakdown: string;  // Insights and analysis based on actual profile data
+  bannerSummary?: string;  // NEW: Why they got this score with context
+  howToImprove?: string;  // NEW: Overall improvement directions for this banner
+  checklistItems: ChecklistCriterion[];  // Specific checklist items
+  bestPractices: string[];  // 3-4 actionable tips
+  experienceEntries?: ExperienceEntry[];  // NEW: For Experience banner only - individual experience analysis
 }
 
 export interface SectionChecklist {
@@ -441,10 +466,11 @@ export interface ChecklistBasedAudit {
   overallScore: number;          // 0-100
   grade: string;                 // A+, A, A-, B+, B, B-, C+, C, C-, D, F
   profileStrength: string;       // "Exceptional", "Very Good", etc.
-  sectionScores: DetailedScores;
+  banners: BannerSection[];      // NEW: 12 banner sections with checklist, best practices, breakdown
+  sectionScores?: DetailedScores; // Legacy - optional for backward compatibility
   bonuses: number;
   penalties: number;
-  checklistResults: SectionChecklist[];
+  checklistResults: SectionChecklist[];  // Legacy - kept for backward compatibility
   priorityImprovements: PriorityImprovement[];
   quickWins: QuickWin[];
   strengths: string[];

@@ -9,8 +9,7 @@ import type {
   ChecklistItem,
   CategoryScores,
   OptimizationReport,
-  EnhancedLinkedInAuditResult,
-  ChecklistBasedAudit
+  EnhancedLinkedInAuditResult
 } from "@/services/api/types"
 
 /**
@@ -26,53 +25,132 @@ export function hasChecklistAudit(audit: any): audit is EnhancedLinkedInAuditRes
 export function convertChecklistAuditToUnified(audit: EnhancedLinkedInAuditResult): UnifiedLinkedInAudit {
   const checklistAudit = audit.checklistAudit!
   
-  // Convert checklist results to ChecklistItem format
+  // Convert checklist results to ChecklistItem format (if using legacy checklistResults)
   const checklist: ChecklistItem[] = []
   let itemId = 1
   
-  checklistAudit.checklistResults.forEach(section => {
-    section.items.forEach(item => {
-      // Map section names to categories
-      const categoryMap: Record<string, ChecklistItem['category']> = {
-        'Headline': 'Headline',
-        'About': 'About',
-        'About Section': 'About',
-        'Experience': 'Experience',
-        'Skills': 'Skills',
-        'Keywords': 'Keywords',
-        'Certifications': 'Certifications',
-        'Profile Completeness': 'Skills', // Map to closest category
-        'Profile Photo & Banner': 'About',
-        'Education': 'Experience',
-        'Recommendations': 'Experience',
-        'Additional Sections': 'Skills'
-      }
-      
-      const category = categoryMap[section.section] || 'Skills'
-      const status = item.status === 'pass' ? 'pass' : item.status === 'fail' ? 'critical' : 'warning'
-      
-      checklist.push({
-        id: `checklist-${itemId++}`,
-        category,
-        title: item.criterion,
-        status,
-        scoreImpact: Math.round(item.points),
-        reasoning: item.reasoning,
-        bestPractice: `Best practice for ${item.criterion}`,
-        example: `See LinkedIn best practices`,
-        fixSuggestion: null
+  // NEW: Check if we have banners (V2 format)
+  if (checklistAudit.banners && checklistAudit.banners.length > 0) {
+    // Use new banner structure
+    checklistAudit.banners.forEach(banner => {
+      banner.checklistItems.forEach(item => {
+        const categoryMap: Record<string, ChecklistItem['category']> = {
+          'profile_photo': 'About',
+          'banner': 'About',
+          'headline': 'Headline',
+          'about': 'About',
+          'experience': 'Experience',
+          'skills': 'Skills',
+          'custom_url': 'About',
+          'education': 'Skills',  // Map education to Skills to avoid showing in Experience checklist
+          'certifications': 'Certifications'
+        }
+        
+        const category = categoryMap[banner.id] || 'Skills'
+        const status = item.status === 'pass' ? 'pass' : item.status === 'fail' ? 'critical' : 'warning'
+        
+        // Use reasoning for analysis and actionableFix for the fix suggestion
+        const reasoning = item.reasoning || `Analysis for ${item.criterion}`
+        const fixSuggestion = item.actionableFix || null
+        
+        // Create best practice from the criterion and context
+        let bestPractice = item.reasoning
+        if (item.status === 'fail' || item.status === 'warning') {
+          // For failed/warning items, provide actionable advice
+          bestPractice = `Fix: ${item.criterion}. ${item.reasoning.substring(0, 150)}...`
+        }
+        
+        checklist.push({
+          id: `checklist-${itemId++}`,
+          category,
+          title: item.criterion,
+          status,
+          scoreImpact: Math.round(item.points),
+          reasoning: reasoning,
+          bestPractice: bestPractice,
+          example: `See LinkedIn best practices`,
+          fixSuggestion: fixSuggestion
+        })
       })
     })
-  })
+  } else if (checklistAudit.checklistResults && checklistAudit.checklistResults.length > 0) {
+    // Legacy: Use checklistResults
+    checklistAudit.checklistResults.forEach(section => {
+      section.items.forEach(item => {
+        // Map section names to categories
+        const categoryMap: Record<string, ChecklistItem['category']> = {
+          'Headline': 'Headline',
+          'About': 'About',
+          'About Section': 'About',
+          'Experience': 'Experience',
+          'Skills': 'Skills',
+          'Keywords': 'Keywords',
+          'Certifications': 'Certifications',
+          'Profile Completeness': 'Skills',
+          'Profile Photo & Banner': 'About',
+          'Education': 'Skills',  // Map education to Skills to avoid showing in Experience checklist
+          'Additional Sections': 'Skills'
+        }
+        
+        const category = categoryMap[section.section] || 'Skills'
+        const status = item.status === 'pass' ? 'pass' : item.status === 'fail' ? 'critical' : 'warning'
+        
+        checklist.push({
+          id: `checklist-${itemId++}`,
+          category,
+          title: item.criterion,
+          status,
+          scoreImpact: Math.round(item.points),
+          reasoning: item.reasoning,
+          bestPractice: `Best practice for ${item.criterion}`,
+          example: `See LinkedIn best practices`,
+          fixSuggestion: null
+        })
+      })
+    })
+  }
   
   // Map detailed scores to category scores (approximate mapping)
-  const categoryScores: CategoryScores = {
-    headline: checklistAudit.sectionScores.headline,
-    about: checklistAudit.sectionScores.about,
-    experience: checklistAudit.sectionScores.experience,
-    skills: checklistAudit.sectionScores.skills,
-    keywords: 0, // Not directly mapped in new system
-    certifications: 0 // Not directly mapped in new system
+  // Handle both V2 (banners) and legacy (sectionScores) formats
+  let categoryScores: CategoryScores
+  
+  if (checklistAudit.banners && checklistAudit.banners.length > 0) {
+    // Calculate from banners
+    categoryScores = {
+      headline: Math.round(checklistAudit.banners.find(b => b.id === 'headline')?.score || 0),
+      about: Math.round(checklistAudit.banners.find(b => b.id === 'about')?.score || 0),
+      experience: Math.round(checklistAudit.banners.find(b => b.id === 'experience')?.score || 0),
+      skills: Math.round(checklistAudit.banners.find(b => b.id === 'skills')?.score || 0),
+      keywords: 0,
+      certifications: Math.round(checklistAudit.banners.find(b => b.id === 'certifications')?.score || 0)
+    }
+  } else if (checklistAudit.sectionScores) {
+    // Legacy: Use sectionScores
+    categoryScores = {
+      headline: checklistAudit.sectionScores.headline || 0,
+      about: checklistAudit.sectionScores.about || 0,
+      experience: checklistAudit.sectionScores.experience || 0,
+      skills: checklistAudit.sectionScores.skills || 0,
+      keywords: 0,
+      certifications: 0
+    }
+  } else {
+    // Fallback: Calculate from checklist
+    categoryScores = {
+      headline: 0,
+      about: 0,
+      experience: 0,
+      skills: 0,
+      keywords: 0,
+      certifications: 0
+    }
+    
+    checklist.forEach(item => {
+      const category = item.category.toLowerCase() as keyof CategoryScores
+      if (category in categoryScores && item.status === 'pass') {
+        categoryScores[category] += item.scoreImpact
+      }
+    })
   }
   
   const optimizationReport: OptimizationReport = {
@@ -83,7 +161,8 @@ export function convertChecklistAuditToUnified(audit: EnhancedLinkedInAuditResul
   
   return {
     userProfile: audit.userProfile,
-    optimizationReport
+    optimizationReport,
+    checklistAudit: checklistAudit  // Pass through the full checklist audit with banners
   }
 }
 

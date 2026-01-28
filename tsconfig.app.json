@@ -30,5 +30,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/ai-chat-assistant-ready-to-use-claude-gpt-gemini"]
 }

@@ -28,6 +28,8 @@ export default function LinkedInLanding() {
 
   const [selectedMode, setSelectedMode] = React.useState<"create" | "review" | "improve" | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
+  const [isExtracting, setIsExtracting] = React.useState(false)
+  const [loadingMessage, setLoadingMessage] = React.useState("")
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const { setLinkedInAudit, setParsedProfile } = useApp()
 
@@ -41,35 +43,48 @@ export default function LinkedInLanding() {
         setIsLoadingSessions(true)
         const resumes = await resumeService.listResumes(10)
 
-        // Map resumes to session cards
-        const mappedSessions: SessionCard[] = resumes
-          .filter((r: ResumeItemSummary) => r.name) // Only show named projects
-          .map((r: ResumeItemSummary) => {
-            // Determine type based on name patterns
-            let type: "create" | "review" | "improve" = "review"
-            const nameLower = r.name?.toLowerCase() || ""
+        // Map resumes to session cards - fetch full data to get LinkedIn profile name
+        const mappedSessions: SessionCard[] = await Promise.all(
+          resumes
+            .filter((r: ResumeItemSummary) => r.name) // Only show named projects
+            .map(async (r: ResumeItemSummary) => {
+              // Determine type based on name patterns
+              let type: "create" | "review" | "improve" = "review"
+              const nameLower = r.name?.toLowerCase() || ""
 
-            // Check for explicit type indicators in name
-            if (nameLower.includes("create") || nameLower.includes("creation")) {
-              type = "create"
-            } else if (nameLower.includes("improve") || nameLower.includes("improvement") || nameLower.includes("optimization")) {
-              type = "improve"
-            } else if (nameLower.includes("review") || nameLower.includes("audit")) {
-              type = "review"
-            }
-            // If name contains "linkedin" but no specific type, check for resume indicators
-            else if (nameLower.includes("resume") && !nameLower.includes("linkedin")) {
-              type = "create" // Resume upload typically means profile creation
-            }
+              // Check for explicit type indicators in name
+              if (nameLower.includes("create") || nameLower.includes("creation")) {
+                type = "create"
+              } else if (nameLower.includes("improve") || nameLower.includes("improvement") || nameLower.includes("optimization")) {
+                type = "improve"
+              } else if (nameLower.includes("review") || nameLower.includes("audit")) {
+                type = "review"
+              }
+              // If name contains "linkedin" but no specific type, check for resume indicators
+              else if (nameLower.includes("resume") && !nameLower.includes("linkedin")) {
+                type = "create" // Resume upload typically means profile creation
+              }
 
-            return {
-              id: r.id,
-              type,
-              candidateName: r.name || "Unnamed Project",
-              lastEdited: formatTimestamp(r.updatedAt),
-              status: "complete" as const,
-            }
-          })
+              // Try to fetch full resume data to get LinkedIn profile name
+              let candidateName = r.name || "Unnamed Project"
+              try {
+                const fullResume = await resumeService.getResume(r.id)
+                if (fullResume?.linkedInAudit?.userProfile?.fullName) {
+                  candidateName = fullResume.linkedInAudit.userProfile.fullName
+                }
+              } catch (error) {
+                console.log(`Could not fetch full data for resume ${r.id}:`, error)
+              }
+
+              return {
+                id: r.id,
+                type,
+                candidateName,
+                lastEdited: formatTimestamp(r.updatedAt),
+                status: "complete" as const,
+              }
+            })
+        )
 
         setSessions(mappedSessions)
       } catch (error) {
@@ -138,8 +153,53 @@ export default function LinkedInLanding() {
     fileInputRef.current?.click()
   }
 
-  const handleUrlSubmit = () => {
-    if (linkedInUrl.trim() && selectedMode) {
+  const handleUrlSubmit = async () => {
+    if (!linkedInUrl.trim() || !selectedMode) return
+
+    // For review/improve modes with LinkedIn URL, extract directly
+    if ((selectedMode === "review" || selectedMode === "improve") && linkedInUrl.trim()) {
+      try {
+        setIsExtracting(true)
+        
+        // Cycle through loading messages
+        const messages = [
+          "Evaluating your LinkedIn...",
+          "Analyzing your profile...",
+          "Almost ready...",
+          "How's the weather outside?",
+          "Crunching the numbers...",
+          "Almost done..."
+        ]
+        
+        let messageIndex = 0
+        setLoadingMessage(messages[0])
+        
+        const messageInterval = setInterval(() => {
+          messageIndex = (messageIndex + 1) % messages.length
+          setLoadingMessage(messages[messageIndex])
+        }, 2000) // Change message every 2 seconds
+
+        const result = await resumeService.extractLinkedInFromUrl(linkedInUrl.trim())
+        
+        clearInterval(messageInterval)
+        
+        // Store audit in context
+        setLinkedInAudit(result.audit)
+
+        // Navigate to workspace
+        navigate(`/linkedin/workspace/${result.projectId}`, {
+          state: {
+            linkedInAudit: result.audit,
+            startMode: selectedMode,
+          },
+        })
+      } catch (error) {
+        console.error("URL extraction failed:", error)
+        // TODO: Show error toast
+        setIsExtracting(false)
+      }
+    } else {
+      // For create mode or other cases, navigate to review page
       navigate("/linkedin/review", { state: { linkedInUrl, startMode: selectedMode } })
     }
   }
@@ -312,7 +372,7 @@ export default function LinkedInLanding() {
 
           <button
             onClick={handleUrlSubmit}
-            disabled={!linkedInUrl.trim()}
+            disabled={!linkedInUrl.trim() || isExtracting}
             className={cn(
               "w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
               isDark
@@ -320,7 +380,11 @@ export default function LinkedInLanding() {
                 : "bg-gray-100 hover:bg-gray-200"
             )}
           >
-            <ArrowRight className={cn("w-5 h-5", isDark ? "text-gray-400" : "text-gray-600")} />
+            {isExtracting ? (
+              <Loader2 className={cn("w-5 h-5 animate-spin", isDark ? "text-gray-400" : "text-gray-600")} />
+            ) : (
+              <ArrowRight className={cn("w-5 h-5", isDark ? "text-gray-400" : "text-gray-600")} />
+            )}
           </button>
         </div>
 
@@ -419,6 +483,32 @@ export default function LinkedInLanding() {
           </div>
         )}
       </div>
+
+      {/* Loading Overlay */}
+      {isExtracting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className={cn(
+            "w-96 p-8 rounded-3xl shadow-2xl text-center",
+            isDark ? "bg-[#202325]" : "bg-white"
+          )}>
+            <div className="mb-6">
+              <Loader2 className="w-12 h-12 mx-auto animate-spin text-[#815FAA]" />
+            </div>
+            <h3 className={cn(
+              "text-xl font-medium mb-2",
+              isDark ? "text-white" : "text-gray-900"
+            )}>
+              {loadingMessage}
+            </h3>
+            <p className={cn(
+              "text-sm",
+              isDark ? "text-gray-400" : "text-gray-500"
+            )}>
+              This may take a moment
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

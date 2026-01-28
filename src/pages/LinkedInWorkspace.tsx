@@ -29,7 +29,7 @@ import type {
   ParsedProfile
 } from "@/services/api/types"
 import { CreationCard } from "@/components/CreationCard"
-import { LinkedInChatInterface } from "@/components/LinkedInChatInterface"
+import { ChatShell } from "@/components/chat/ChatShell"
 import { OptimizationSidebar } from "@/components/OptimizationSidebar"
 import { AskAIButton } from "@/components/AskAIButton"
 import { useApp } from "@/contexts/AppContext"
@@ -40,25 +40,6 @@ type WorkspaceMode = "review" | "improve" | "create"
 type RightPanelState = "preview" | "copilot"
 type PreviewMode = "existing" | "improved"
 type CreateViewMode = "sections" | "overview"
-
-// Review mode copilot prompts
-const REVIEW_COPILOT_PROMPTS = [
-  "Tell me more about it",
-  "Share more best practices",
-  "Get sample profiles",
-  "What do top performers do differently?",
-]
-
-// Improve mode copilot prompts
-const IMPROVE_COPILOT_PROMPTS = [
-  "Tell me more about it",
-  "Learn best practices",
-  "Help me refine the answer",
-  "Make it more impactful",
-  "Add more keywords",
-]
-
-
 
 // AboutSection component with Read More functionality
 function AboutSection({ content, isDark }: { content: string; isDark: boolean }) {
@@ -136,11 +117,9 @@ function LinkedInWorkspace() {
   const [rightPanelState, setRightPanelState] = React.useState<RightPanelState>("preview")
   const [previewMode, setPreviewMode] = React.useState<PreviewMode>("existing")
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["headline"]))
-  const [copilotContext, setCopilotContext] = React.useState<string>("")
-  const [copilotSectionId, setCopilotSectionId] = React.useState<string | null>(null)
-  const [chatMessages, setChatMessages] = React.useState<Array<{ role: "user" | "ai"; content: string }>>([])
-  const [copilotPrompts, setCopilotPrompts] = React.useState<string[]>([])
-  const [isChatLoading, setIsChatLoading] = React.useState(false)
+  const [_copilotContext, setCopilotContext] = React.useState<string>("")
+  const [_copilotSectionId, setCopilotSectionId] = React.useState<string | null>(null)
+  const [copilotInitialMessage, setCopilotInitialMessage] = React.useState<string | undefined>(undefined)
 
 
   const [createViewMode, setCreateViewMode] = React.useState<CreateViewMode>("sections")
@@ -277,47 +256,22 @@ function LinkedInWorkspace() {
     setExpandedSections(newExpanded)
   }
 
-  const handleDiscussWithCopilot = (sectionTitle: string, prompts: string[] = [], isReviewMode: boolean = true, sectionId?: string, initialMessage?: string) => {
+  const handleDiscussWithCopilot = (sectionTitle: string, _prompts: string[] = [], _isReviewMode: boolean = true, sectionId?: string, initialMessage?: string) => {
+    console.log('handleDiscussWithCopilot called:', { sectionTitle, sectionId, initialMessage })
     setCopilotContext(sectionTitle)
     if (sectionId) setCopilotSectionId(sectionId)
     else setCopilotSectionId(null)
 
-    const defaultPrompts = isReviewMode ? REVIEW_COPILOT_PROMPTS : IMPROVE_COPILOT_PROMPTS
-    setCopilotPrompts(prompts.length > 0 ? prompts : defaultPrompts)
+    console.log('Setting rightPanelState to copilot')
     setRightPanelState("copilot")
 
-    // If there's an initial message, send it. Otherwise, clear chat for a fresh start.
+    // Set the initial message for ChatShell
     if (initialMessage) {
-      // We delay slightly to ensure panel transition doesn't jitter, but it's optional
-      setTimeout(() => handleSendMessage(initialMessage), 100)
+      console.log('Setting initial message:', initialMessage)
+      setCopilotInitialMessage(initialMessage)
     } else {
-      setChatMessages([])
-    }
-  }
-
-  const handleSendMessage = async (userMsg: string) => {
-    if (!userMsg.trim() || !resumeId) return
-
-    // Add user message
-    setChatMessages(prev => [...prev, { role: "user", content: userMsg }])
-    setIsChatLoading(true)
-
-    try {
-      const history = chatMessages.map(m => ({ role: m.role, content: m.content }));
-      const response = await resumeService.chatWithLinkedInCopilot(
-        resumeId,
-        userMsg,
-        history,
-        copilotSectionId || undefined
-      )
-
-      setChatMessages(prev => [...prev, { role: "ai", content: response.message }])
-      // We could also update prompts here if the API returned new ones
-    } catch (err) {
-      console.error(err)
-      setChatMessages(prev => [...prev, { role: "ai", content: "Sorry, I encountered an error. Please try again." }])
-    } finally {
-      setIsChatLoading(false)
+      console.log('No initial message')
+      setCopilotInitialMessage(undefined)
     }
   }
 
@@ -462,9 +416,24 @@ function LinkedInWorkspace() {
               <OptimizationSidebar
                 totalScore={convertAuditToUnified(auditData).optimizationReport.totalScore}
                 checklist={convertAuditToUnified(auditData).optimizationReport.checklist}
-                auditData={convertAuditToUnified(auditData)}
+                auditData={auditData}
                 isDark={isDark}
-                onFix={(itemId) => {
+                onFix={(itemId, contextMessage) => {
+                  console.log('onFix called with:', { itemId, contextMessage })
+                  
+                  // If we have a context message, use it directly
+                  if (contextMessage) {
+                    handleDiscussWithCopilot(
+                      itemId, // section title
+                      [],
+                      false,
+                      itemId, // section ID
+                      contextMessage
+                    )
+                    return
+                  }
+                  
+                  // Fallback: try to find in checklist (legacy behavior)
                   const unified = convertAuditToUnified(auditData)
                   const item = unified.optimizationReport.checklist.find(i => i.id === itemId)
                   if (item) {
@@ -532,23 +501,35 @@ function LinkedInWorkspace() {
             auditData={auditData}
             userName={userName}
             workspaceMode={workspaceMode}
-            onOpenCopilot={() => {
-              setRightPanelState("copilot")
-              if (chatMessages.length === 0) {
-                setChatMessages([])
-              }
-            }}
           />
         ) : (
-          <LinkedInChatInterface
-            isDark={isDark}
-            copilotContext={copilotContext}
-            chatMessages={chatMessages}
-            copilotPrompts={copilotPrompts}
-            handleSendMessage={handleSendMessage}
-            onClose={() => setRightPanelState("preview")}
-            onClear={() => setChatMessages([])}
-            isLoading={isChatLoading}
+          <ChatShell 
+            onClose={() => setRightPanelState("preview")} 
+            initialMessage={copilotInitialMessage}
+            onInitialMessageSent={() => setCopilotInitialMessage(undefined)}
+            profileContext={{
+              hasHeadlineIssues: auditData ? (() => {
+                const unified = convertAuditToUnified(auditData)
+                const headlineBanner = unified.checklistAudit?.banners?.find(b => b.id === 'headline')
+                return headlineBanner ? headlineBanner.checklistItems.some(item => item.status !== 'pass') : false
+              })() : false,
+              hasAboutIssues: auditData ? (() => {
+                const unified = convertAuditToUnified(auditData)
+                const aboutBanner = unified.checklistAudit?.banners?.find(b => b.id === 'about')
+                return aboutBanner ? aboutBanner.checklistItems.some(item => item.status !== 'pass') : false
+              })() : false,
+              hasExperienceIssues: auditData ? (() => {
+                const unified = convertAuditToUnified(auditData)
+                const expBanner = unified.checklistAudit?.banners?.find(b => b.id === 'experience')
+                return expBanner ? expBanner.checklistItems.some(item => item.status !== 'pass') : false
+              })() : false,
+              hasSkillsIssues: auditData ? (() => {
+                const unified = convertAuditToUnified(auditData)
+                const skillsBanner = unified.checklistAudit?.banners?.find(b => b.id === 'skills')
+                return skillsBanner ? skillsBanner.checklistItems.some(item => item.status !== 'pass') : false
+              })() : false,
+              overallScore: auditData ? convertAuditToUnified(auditData).optimizationReport.totalScore : undefined
+            }}
           />
         )}
       </AnimatePresence>
@@ -580,10 +561,12 @@ function LinkedInWorkspace() {
         </ResizablePanelGroup>
       </div>
 
-      <AskAIButton
-        onClick={() => setRightPanelState("copilot")}
-        isDark={isDark}
-      />
+      {rightPanelState !== "copilot" && (
+        <AskAIButton
+          onClick={() => setRightPanelState("copilot")}
+          isDark={isDark}
+        />
+      )}
     </div>
   )
 }
@@ -727,7 +710,22 @@ function CreateModeContent({
               checklist={unifiedAudit.optimizationReport.checklist}
               auditData={unifiedAudit}
               isDark={isDark}
-              onFix={(itemId) => {
+              onFix={(itemId, contextMessage) => {
+                console.log('onFix called in create mode with:', { itemId, contextMessage })
+                
+                // If we have a context message, use it directly
+                if (contextMessage) {
+                  handleDiscussWithCopilot(
+                    itemId, // section title
+                    [],
+                    false,
+                    itemId, // section ID
+                    contextMessage
+                  )
+                  return
+                }
+                
+                // Fallback: try to find in checklist (legacy behavior)
                 const item = unifiedAudit.optimizationReport.checklist.find(i => i.id === itemId)
                 if (item) {
                   handleDiscussWithCopilot(
@@ -811,25 +809,26 @@ function getImprovedContent(
 }
 
 // Helper to safely get existing content
-function getExistingContent(
-  auditData: LinkedInAudit | UnifiedLinkedInAudit | null,
-  sectionId: string,
-  fallbackContent?: string
-): string {
-  if (!auditData) return fallbackContent || ""
+// Helper function - currently unused but kept for potential future use
+// function getExistingContent(
+//   auditData: LinkedInAudit | UnifiedLinkedInAudit | null,
+//   sectionId: string,
+//   fallbackContent?: string
+// ): string {
+//   if (!auditData) return fallbackContent || ""
 
-  // New Unified Format
-  if ('optimizationReport' in auditData) {
-    if (sectionId === 'headline') return auditData.userProfile.headline || fallbackContent || ""
-    if (sectionId === 'about') return auditData.userProfile.about || fallbackContent || ""
-    // specific logic for experience would be complex as it is an array, but for single fields it works
-    return fallbackContent || ""
-  }
+//   // New Unified Format
+//   if ('optimizationReport' in auditData) {
+//     if (sectionId === 'headline') return auditData.userProfile.headline || fallbackContent || ""
+//     if (sectionId === 'about') return auditData.userProfile.about || fallbackContent || ""
+//     // specific logic for experience would be complex as it is an array, but for single fields it works
+//     return fallbackContent || ""
+//   }
 
-  // Old Format
-  const section = auditData.improveModule.find(s => s.sectionId === sectionId)
-  return section?.existingContent || fallbackContent || ""
-}
+//   // Old Format
+//   const section = auditData.improveModule.find(s => s.sectionId === sectionId)
+//   return section?.existingContent || fallbackContent || ""
+// }
 
 // Preview Panel Component
 function PreviewPanel({
@@ -840,7 +839,6 @@ function PreviewPanel({
   auditData,
   userName,
   workspaceMode,
-  onOpenCopilot,
 }: {
   isDark: boolean
   previewMode: PreviewMode
@@ -849,7 +847,6 @@ function PreviewPanel({
   auditData: LinkedInAudit | UnifiedLinkedInAudit | null
   userName: string
   workspaceMode: WorkspaceMode
-  onOpenCopilot: () => void
 }) {
   return (
     <motion.div
@@ -915,16 +912,33 @@ function PreviewPanel({
           }}
         >
           <div className="relative">
-            <div
-              className="h-32 w-full bg-cover bg-center"
-              style={{
-                background: (auditData?.userProfile?.background_picture_url || (auditData as any)?.background_picture_url)
-                  ? `url('${auditData?.userProfile?.background_picture_url || (auditData as any)?.background_picture_url}')`
-                  : '#A0B4B7',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
-            />
+            {/* Banner Image */}
+            {(() => {
+              const bannerUrl = 
+                auditData?.userProfile?.backgroundPictureUrl || 
+                auditData?.userProfile?.background_picture_url || 
+                (auditData as any)?.backgroundPictureUrl ||
+                (auditData as any)?.background_picture_url;
+              
+              return bannerUrl ? (
+                <img
+                  src={bannerUrl}
+                  alt="Profile Banner"
+                  className="h-32 w-full object-cover"
+                  onError={(e) => {
+                    // Fallback to gray background if image fails to load
+                    e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.style.backgroundColor = '#A0B4B7';
+                      parent.style.height = '8rem';
+                    }
+                  }}
+                />
+              ) : (
+                <div className="h-32 w-full" style={{ backgroundColor: '#A0B4B7' }} />
+              );
+            })()}
             <div className="px-6 -mt-20 mb-4">
 
               {/* Profile Picture - Robust Implementation */}
@@ -1165,23 +1179,6 @@ function PreviewPanel({
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {auditData && workspaceMode !== "create" && (
-                <div className="mt-6 p-4 rounded-xl" style={{ background: isDark ? 'rgba(129,95,170,0.1)' : 'rgba(129,95,170,0.05)' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className={cn("text-sm font-semibold", isDark ? "text-white" : "text-[#0F172A]")}>Profile Score</h3>
-                    <span className="text-2xl font-bold text-[#815FAA]">
-                      {'optimizationReport' in auditData ? auditData.optimizationReport.totalScore : auditData.reviewModule.overallScore}/100
-                    </span>
-                  </div>
-                  <p className={cn("text-xs", isDark ? "text-gray-400" : "text-gray-600")}>
-                    {'reviewModule' in auditData && (typeof auditData.reviewModule.summary === 'string'
-                      ? auditData.reviewModule.summary
-                      : `${auditData.reviewModule.summary?.strengths?.[0] || ''} ${auditData.reviewModule.summary?.gaps?.[0] || ''}`)}
-                    {'optimizationReport' in auditData && "Check validation report for details."}
-                  </p>
                 </div>
               )}
             </div>

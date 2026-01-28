@@ -1,6 +1,5 @@
-import { useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Sparkles, MessageSquarePlus } from "lucide-react"
+import { motion } from "framer-motion"
+import { Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface AskAIButtonProps {
