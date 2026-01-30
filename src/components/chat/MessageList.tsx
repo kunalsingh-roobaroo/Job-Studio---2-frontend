@@ -21,11 +21,12 @@ interface MessageListProps {
     hasSkillsIssues?: boolean
     overallScore?: number
   }
+  currentSection?: string | null
 }
 
 const LAUNCH_SOUND_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/launch-SUi0itAGHr1wtvdDYYG5bzFLsIYHtP.mp3"
 
-export function MessageList({ messages, isStreaming, error, onRetry, isLoaded, onPromptClick, profileContext }: MessageListProps) {
+export function MessageList({ messages, isStreaming, error, onRetry, isLoaded, onPromptClick, profileContext, currentSection }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -154,6 +155,7 @@ export function MessageList({ messages, isStreaming, error, onRetry, isLoaded, o
               <FloatingPrompts 
                 onPromptClick={onPromptClick}
                 profileContext={profileContext}
+                currentSection={currentSection}
               />
             </div>
           )}

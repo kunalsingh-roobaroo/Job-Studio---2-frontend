@@ -34,9 +34,10 @@ interface ChatShellProps {
     hasSkillsIssues?: boolean
     overallScore?: number
   }
+  currentSection?: string | null
 }
 
-export function ChatShell({ onClose, initialMessage, onInitialMessageSent, profileContext }: ChatShellProps) {
+export function ChatShell({ onClose, initialMessage, onInitialMessageSent, profileContext, currentSection }: ChatShellProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -258,6 +259,7 @@ export function ChatShell({ onClose, initialMessage, onInitialMessageSent, profi
         isLoaded={isLoaded}
         onPromptClick={sendMessage}
         profileContext={profileContext}
+        currentSection={currentSection}
       />
 
       <Composer

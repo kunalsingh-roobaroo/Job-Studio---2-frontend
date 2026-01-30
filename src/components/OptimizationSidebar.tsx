@@ -6,7 +6,7 @@ import {
     BookOpen, Link as LinkIcon, Award, Star,
     GraduationCap, ThumbsUp, ChevronRight, ChevronLeft,
     CheckCircle2, AlertTriangle, Lightbulb, Sparkles,
-    Info, Wrench
+    Info
 } from "lucide-react"
 
 import type { UnifiedLinkedInAudit, LinkedInAudit, ChecklistItem, BannerSection, EnhancedLinkedInAuditResult } from "@/services/api/types"
@@ -407,40 +407,49 @@ function ExperienceChecklistItems({
     
     return (
         <div>
-            <h5 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-3">
+            <h5 className="text-sm font-medium text-gray-900 mb-4">
                 Checklist
             </h5>
-            <div className="space-y-2">
+            <div className="space-y-3">
                 {items.map((item, itemIdx) => {
                     const isExpanded = expandedSubItem === itemIdx
+                    const isCritical = item.status === 'fail'
+                    const isWarning = item.status === 'warning'
                     
                     return (
-                        <div key={itemIdx} className="space-y-2">
-                            {/* Clickable Checklist Item */}
+                        <div key={itemIdx} className="space-y-3">
+                            {/* Clickable Checklist Item Card */}
                             <button
                                 onClick={() => setExpandedSubItem(isExpanded ? null : itemIdx)}
                                 className={cn(
-                                    "w-full flex items-start gap-3 p-3 rounded-lg transition-all text-left",
-                                    isExpanded 
-                                        ? "bg-white border-2 border-violet-200 shadow-sm" 
-                                        : "bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-white"
+                                    "w-full flex items-start gap-4 p-4 rounded-xl bg-white shadow-sm transition-all text-left group hover:shadow-md",
+                                    isCritical && "border-l-4 border-red-500",
+                                    isWarning && "border-l-4 border-amber-500"
                                 )}
                             >
-                                {item.status === 'pass' ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                                ) : item.status === 'warning' ? (
-                                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                                ) : (
-                                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                                )}
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-900">{item.criterion}</p>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-sm font-medium text-gray-900">{item.criterion}</p>
+                                        {isCritical && (
+                                            <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium">
+                                                Failed
+                                            </span>
+                                        )}
+                                        {isWarning && (
+                                            <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-xs font-medium">
+                                                Warning
+                                            </span>
+                                        )}
+                                        {item.status === 'pass' && (
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        )}
+                                    </div>
                                     {!isExpanded && item.reasoning && (
-                                        <p className="text-xs text-slate-600 mt-1 line-clamp-1">{item.reasoning}</p>
+                                        <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{item.reasoning}</p>
                                     )}
                                 </div>
                                 <ChevronRight className={cn(
-                                    "w-4 h-4 flex-shrink-0 mt-0.5 transition-transform text-slate-400",
+                                    "w-5 h-5 flex-shrink-0 mt-0.5 transition-transform text-gray-400 group-hover:text-gray-600",
                                     isExpanded && "rotate-90"
                                 )} />
                             </button>
@@ -453,50 +462,77 @@ function ExperienceChecklistItems({
                                         animate={{ opacity: 1, height: "auto" }}
                                         exit={{ opacity: 0, height: 0 }}
                                         transition={{ duration: 0.2 }}
-                                        className="overflow-hidden rounded-lg border border-gray-200 bg-white p-4 space-y-4"
+                                        className="overflow-hidden"
                                     >
-                                        {/* Analysis Section */}
-                                        {item.reasoning && (
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Info className="w-4 h-4 text-amber-600" />
-                                                    <h6 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
-                                                        Analysis
-                                                    </h6>
+                                        <div className="bg-white rounded-xl p-6 space-y-6 border border-slate-200 shadow-sm">
+                                            {/* Analysis Section */}
+                                            {item.reasoning && (
+                                                <div>
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                                            <Info className="w-4 h-4 text-amber-600" />
+                                                        </div>
+                                                        <h6 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                                                            Analysis
+                                                        </h6>
+                                                    </div>
+                                                    <div className="pl-11">
+                                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                                            {item.reasoning}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-                                                    {item.reasoning}
-                                                </p>
-                                            </div>
-                                        )}
-                                        
-                                        {/* Suggested Fix Section */}
-                                        {item.actionableFix && (
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Wrench className="w-4 h-4 text-violet-600" />
-                                                    <h6 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
-                                                        Suggested Fix
-                                                    </h6>
+                                            )}
+                                            
+                                            {/* Suggested Fix Section - only show if different from analysis */}
+                                            {item.actionableFix && item.actionableFix.trim() !== item.reasoning.trim() && (
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
+                                                                <Lightbulb className="w-4 h-4 text-purple-600" />
+                                                            </div>
+                                                            <h6 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                                                                Suggested fix
+                                                            </h6>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                const contextMessage = `Help me fix: ${item.criterion} for my ${experience.jobTitle} role at ${experience.company}. ${item.reasoning}`
+                                                                onFix?.(`experience_${expIdx}_item_${itemIdx}`, contextMessage)
+                                                            }}
+                                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:shadow"
+                                                        >
+                                                            <Sparkles className="w-3.5 h-3.5" />
+                                                            Auto-fix
+                                                        </button>
+                                                    </div>
+                                                    <div className="pl-11">
+                                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                                            {item.actionableFix}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-                                                    {item.actionableFix}
+                                            )}
+                                            
+                                            {/* Action button when no specific fix is available */}
+                                            {(!item.actionableFix || item.actionableFix.trim() === item.reasoning.trim()) && (
+                                                <div className="pt-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            const contextMessage = `Help me fix: ${item.criterion} for my ${experience.jobTitle} role at ${experience.company}. ${item.reasoning}`
+                                                            onFix?.(`experience_${expIdx}_item_${itemIdx}`, contextMessage)
+                                                        }}
+                                                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-sm font-medium transition-all shadow-sm hover:shadow"
+                                                    >
+                                                        <Sparkles className="w-4 h-4" />
+                                                        Get personalized fix with AI
+                                                    </button>
                                                 </div>
-                                            </div>
-                                        )}
-                                        
-                                        {/* Auto-fix button */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                const contextMessage = `Help me fix: ${item.criterion} for my ${experience.jobTitle} role at ${experience.company}. ${item.reasoning}`
-                                                onFix?.(`experience_${expIdx}_item_${itemIdx}`, contextMessage)
-                                            }}
-                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors"
-                                        >
-                                            <Sparkles className="w-3 h-3" />
-                                            Auto-Fix with Copilot
-                                        </button>
+                                            )}
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -552,13 +588,13 @@ export function OptimizationSidebar({
     }
 
     return (
-        <div className="w-full h-full flex flex-col bg-white border-r border-gray-100 overflow-hidden font-['Inter',sans-serif]">
-            {/* LinkedIn Score Header - Enterprise Clean Design */}
-            <div className="p-6 border-b border-gray-100 flex-shrink-0">
+        <div className="w-full h-full flex flex-col bg-gray-50 overflow-hidden font-['Inter',sans-serif]">
+            {/* LinkedIn Score Header - Clean & Modern */}
+            <div className="p-6 bg-white border-b border-gray-100 flex-shrink-0">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-slate-900 text-3xl font-semibold">LinkedIn Score</h2>
-                        <p className="text-slate-500 text-sm mt-1">
+                        <h2 className="text-gray-900 text-2xl font-semibold">LinkedIn Score</h2>
+                        <p className="text-gray-500 text-sm mt-1">
                             Profile analysis results
                         </p>
                     </div>
@@ -582,22 +618,22 @@ export function OptimizationSidebar({
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-slate-900">{totalScore}</span>
+                            <span className="text-2xl font-bold text-gray-900">{totalScore}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Profile Summary - Plain Text */}
+                {/* Profile Summary */}
                 {view === 'list' && auditData && 'checklistAudit' in auditData && auditData.checklistAudit?.summary && (
-                    <div className="mt-4 bg-violet-50 border-l-4 border-violet-500 rounded-r-md p-4">
-                        <p className="text-sm leading-relaxed text-slate-700">
+                    <div className="mt-4 bg-violet-50 rounded-lg p-4">
+                        <p className="text-sm leading-relaxed text-gray-700">
                             {auditData.checklistAudit.summary}
                         </p>
                     </div>
                 )}
             </div>
 
-            {/* Checklist View - Clean Enterprise List */}
+            {/* Checklist View - Modern Card Grid */}
             <AnimatePresence mode="wait">
                 {view === 'list' && (
                     <motion.div
@@ -606,9 +642,9 @@ export function OptimizationSidebar({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.2 }}
-                        className="flex-1 overflow-y-auto custom-scrollbar"
+                        className="flex-1 overflow-y-auto p-6 custom-scrollbar"
                     >
-                        <div className="divide-y divide-gray-50">
+                        <div className="space-y-3">
                             {items.map((item) => {
                                 const scorePercent = item.maxScore && item.maxScore > 0 
                                     ? (item.score || 0) / item.maxScore * 100 
@@ -622,19 +658,19 @@ export function OptimizationSidebar({
                                     <button
                                         key={item.id}
                                         onClick={() => handleItemClick(item.id)}
-                                        className="w-full flex items-center justify-between py-4 px-6 transition-colors hover:bg-slate-50 group"
+                                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white shadow-sm transition-all hover:shadow-md group"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-slate-100 transition-colors">
+                                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-100 transition-colors">
                                                 <item.icon className="w-5 h-5" />
                                             </div>
-                                            <span className="text-base font-medium text-slate-900">
+                                            <span className="text-sm font-medium text-gray-900">
                                                 {item.title}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             {displayScore && (
-                                                <span className="px-2.5 py-1 rounded-full bg-slate-100 text-sm font-medium text-slate-600">
+                                                <span className="px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-600">
                                                     {displayScore}
                                                 </span>
                                             )}
@@ -645,9 +681,9 @@ export function OptimizationSidebar({
                                             ) : item.status === 'critical' ? (
                                                 <AlertTriangle className="w-5 h-5 text-red-500" />
                                             ) : (
-                                                <Lightbulb className="w-5 h-5 text-slate-400" />
+                                                <Lightbulb className="w-5 h-5 text-gray-400" />
                                             )}
-                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all" />
+                                            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-400 group-hover:translate-x-0.5 transition-all" />
                                         </div>
                                     </button>
                                 )
@@ -662,33 +698,29 @@ export function OptimizationSidebar({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2 }}
-                        className="flex-1 flex flex-col overflow-hidden bg-white"
+                        className="flex-1 flex flex-col overflow-hidden bg-gray-50"
                     >
                         {/* Clean Back Bar */}
-                        <div className="px-6 py-3 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
+                        <div className="px-6 py-4 flex items-center justify-between bg-white border-b border-gray-100 flex-shrink-0">
                             <button
                                 onClick={handleBack}
-                                className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors text-sm font-medium"
+                                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
                             >
                                 <ChevronLeft className="w-4 h-4" />
                                 Back
                             </button>
-                            <span className="text-xs text-slate-400 font-mono">
+                            <span className="text-xs text-gray-400 font-mono">
                                 {items.findIndex(i => i.id === selectedId) + 1} / {items.length}
                             </span>
                         </div>
 
-                        {/* Horizontal Score Pills - Clean Design */}
-                        <div className="px-6 py-4 overflow-x-auto custom-scrollbar flex-shrink-0 border-b border-gray-100">
-                            <div className="flex gap-2 min-w-max">
+                        {/* Horizontal Scrollable Tab Bar - Premium Design */}
+                        <div className="px-6 py-3 overflow-x-auto custom-scrollbar flex-shrink-0 bg-white border-b border-gray-100">
+                            <div className="flex gap-1 min-w-max">
                                 {items.map((item) => {
-                                    const scorePercent = item.maxScore && item.maxScore > 0 
-                                        ? (item.score || 0) / item.maxScore * 100 
-                                        : (item.status === 'pass' ? 100 : item.status === 'warning' ? 60 : 30)
-                                    
                                     const displayScore = (item.score !== undefined && item.maxScore !== undefined)
                                         ? `${Math.round(item.score)}/${Math.round(item.maxScore)}`
-                                        : `${Math.round(scorePercent)}%`
+                                        : null
                                     
                                     const IconComponent = item.icon
                                     const isSelected = item.id === selectedId
@@ -698,72 +730,62 @@ export function OptimizationSidebar({
                                             key={item.id}
                                             onClick={() => handleItemClick(item.id)}
                                             className={cn(
-                                                "flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg border transition-all whitespace-nowrap",
+                                                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap",
                                                 isSelected 
-                                                    ? "bg-violet-50 border-violet-200 text-violet-900" 
-                                                    : "bg-white border-gray-200 text-slate-600 hover:border-gray-300 hover:bg-slate-50"
+                                                    ? "bg-purple-50 text-purple-600" 
+                                                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                                             )}
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <IconComponent className="w-4 h-4" />
-                                                <span className="text-xs font-semibold">{displayScore}</span>
-                                            </div>
-                                            <span className="text-[10px] font-medium opacity-70">
-                                                {item.title}
-                                            </span>
+                                            <IconComponent className="w-4 h-4" />
+                                            <span>{item.title}</span>
+                                            {displayScore && (
+                                                <span className={cn(
+                                                    "text-xs px-1.5 py-0.5 rounded",
+                                                    isSelected ? "bg-purple-100" : "bg-gray-100"
+                                                )}>
+                                                    {displayScore}
+                                                </span>
+                                            )}
                                         </button>
                                     )
                                 })}
                             </div>
                         </div>
 
-                        {/* Content Area */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            {/* Status Alert - Clean Design */}
+                        {/* Content Area - Modern Card Layout */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                            {/* Status Badge - Subtle & Clean */}
                             {selectedItem?.status !== 'pass' && (
-                                <div className={cn(
-                                    "mx-6 mt-6 p-4 rounded-lg border-l-4",
-                                    selectedItem?.status === 'critical'
-                                        ? "bg-red-50 border-red-500"
-                                        : "bg-amber-50 border-amber-500"
-                                )}>
-                                    <div className="flex items-start gap-3">
+                                <div className="mb-6">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white shadow-sm">
                                         {selectedItem?.status === 'critical' ? (
-                                            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                            <>
+                                                <AlertTriangle className="w-4 h-4 text-red-500" />
+                                                <span className="text-sm font-medium text-red-600">Action required</span>
+                                            </>
                                         ) : (
-                                            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                            <>
+                                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                                <span className="text-sm font-medium text-amber-600">Needs improvement</span>
+                                            </>
                                         )}
-                                        <div>
-                                            <h3 className={cn(
-                                                "font-semibold text-sm",
-                                                selectedItem?.status === 'critical' ? "text-red-900" : "text-amber-900"
-                                            )}>
-                                                {selectedItem?.status === 'critical' ? "Action Required" : "Needs Improvement"}
-                                            </h3>
-                                            <p className={cn(
-                                                "text-sm mt-1 leading-relaxed",
-                                                selectedItem?.status === 'critical' ? "text-red-800" : "text-amber-800"
-                                            )}>
-                                                {selectedItem?.description}
-                                            </p>
-                                        </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Tab Navigation - Segmented Control */}
+                            {/* Tab Navigation - Clean Segmented Control */}
                             <div className="px-6 pt-6">
-                                <div className="inline-flex gap-0 p-1 bg-gray-100/50 rounded-lg">
+                                <div className="inline-flex gap-1 p-1 bg-gray-100 rounded-lg">
                                     <button
                                         onClick={() => {
                                             setDetailTab('review')
                                             setExpandedChecklistItem(null)
                                         }}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
+                                            "px-4 py-2 rounded-md text-sm font-medium transition-all",
                                             detailTab === 'review'
-                                                ? "bg-white text-slate-900 shadow-sm"
-                                                : "text-slate-500 hover:text-slate-700 hover:bg-gray-200/50"
+                                                ? "bg-white text-gray-900 shadow-sm"
+                                                : "text-gray-600 hover:text-gray-900"
                                         )}
                                     >
                                         Review
@@ -774,76 +796,51 @@ export function OptimizationSidebar({
                                             setExpandedChecklistItem(null)
                                         }}
                                         className={cn(
-                                            "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
+                                            "px-4 py-2 rounded-md text-sm font-medium transition-all",
                                             detailTab === 'practices'
-                                                ? "bg-white text-slate-900 shadow-sm"
-                                                : "text-slate-500 hover:text-slate-700 hover:bg-gray-200/50"
+                                                ? "bg-white text-gray-900 shadow-sm"
+                                                : "text-gray-600 hover:text-gray-900"
                                         )}
                                     >
-                                        Best Practices
+                                        Best practices
                                     </button>
                                 </div>
                             </div>
 
                                 {/* Tab Content */}
-                                <div className="px-6 py-4">
+                                <div className="px-6 py-6">
                                 {detailTab === 'review' ? (
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                     
-                                    {/* Diagnostic Thread - Enterprise Audit Log Style */}
-                                    <div className="space-y-0 mb-6">
-                                        {/* Analysis Item */}
-                                        <div className="flex gap-3">
-                                            {/* Icon with connector line */}
-                                            <div className="flex flex-col items-center">
-                                                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                                    <Info className="w-4 h-4 text-amber-500" />
+                                    {/* Summary Section - High-level overview only */}
+                                    {selectedItem?.breakdown && (
+                                        <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl p-5 border border-slate-200">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                                                    <Info className="w-5 h-5 text-slate-600" />
                                                 </div>
-                                                <div className="w-px h-full bg-gray-200 mt-2" />
-                                            </div>
-                                            
-                                            {/* Content */}
-                                            <div className="flex-1 pb-6">
-                                                <h5 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-2">
-                                                    Analysis
-                                                </h5>
-                                                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-                                                    {selectedItem?.bannerSummary || "Banner summary will appear here once the backend generates it. Currently testing UI layout."}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Recommendation Item */}
-                                        <div className="flex gap-3">
-                                            {/* Icon */}
-                                            <div className="flex flex-col items-center">
-                                                <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-                                                    <Wrench className="w-4 h-4 text-violet-600" />
+                                                <div className="flex-1">
+                                                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                                        Quick Summary
+                                                    </h4>
+                                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                                        {selectedItem.breakdown}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            
-                                            {/* Content */}
-                                            <div className="flex-1">
-                                                <h5 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-2">
-                                                    Suggested Fix
-                                                </h5>
-                                                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-                                                    {selectedItem?.howToImprove || "Improvement directions will appear here once the backend generates them. Currently testing UI layout."}
-                                                </p>
-                                            </div>
                                         </div>
-                                        
-                                        {/* Divider */}
-                                        <div className="border-t border-gray-200 pt-6 mt-6">
-                                            <h4 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-3">
-                                                {selectedItem?.id === 'experience' && selectedItem?.experienceEntries ? 'Individual Experiences' : 'Detailed Checklist'}
-                                            </h4>
-                                        </div>
+                                    )}
+                                    
+                                    {/* Checklist Section Header */}
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-gray-900 mb-4">
+                                            {selectedItem?.id === 'experience' && selectedItem?.experienceEntries ? 'Individual experiences' : 'Detailed checklist'}
+                                        </h4>
                                     </div>
                                     
                                     {/* Special handling for Experience banner with individual entries */}
                                     {selectedItem?.id === 'experience' && selectedItem?.experienceEntries && selectedItem.experienceEntries.length > 0 ? (
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             {selectedItem.experienceEntries.map((experience, expIdx) => {
                                                 const expScore = experience.score || 0
                                                 const expMaxScore = experience.maxScore || 1
@@ -851,7 +848,7 @@ export function OptimizationSidebar({
                                                 const expStatus: SidebarItemStatus = expPercent >= 80 ? 'pass' : expPercent >= 50 ? 'warning' : 'critical'
                                                 
                                                 return (
-                                                    <div key={expIdx} className="space-y-2">
+                                                    <div key={expIdx} className="space-y-3">
                                                         {/* Experience Card */}
                                                         <button
                                                             onClick={() => {
@@ -877,6 +874,18 @@ export function OptimizationSidebar({
                                                                             {experience.company} - {experience.jobTitle}
                                                                         </h4>
                                                                         <div className="flex items-center gap-2 flex-shrink-0">
+                                                                            {/* Auto-fix button */}
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    const contextMessage = `Auto-fix my ${experience.jobTitle} experience at ${experience.company}. ${experience.summary}`
+                                                                                    onFix?.(`experience_${expIdx}_autofix`, contextMessage)
+                                                                                }}
+                                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:shadow"
+                                                                            >
+                                                                                <Sparkles className="w-3 h-3" />
+                                                                                Auto-fix
+                                                                            </button>
                                                                             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
                                                                                 {Math.round(expScore)}/{Math.round(expMaxScore)}
                                                                             </span>
@@ -1002,75 +1011,77 @@ export function OptimizationSidebar({
                                                         animate={{ opacity: 1, height: "auto" }}
                                                         exit={{ opacity: 0, height: 0 }}
                                                         transition={{ duration: 0.2 }}
-                                                        className="overflow-hidden rounded-xl border border-gray-200 bg-white p-4 space-y-4 shadow-sm"
+                                                        className="overflow-hidden"
                                                     >
-                                                        {/* Status Badge */}
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={cn(
-                                                                "px-2.5 py-1 rounded-lg text-xs font-semibold shadow-sm",
-                                                                item.status === 'pass' 
-                                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                                    : item.status === 'warning'
-                                                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                                                    : "bg-red-50 text-red-700 border border-red-200"
-                                                            )}>
-                                                                {item.status === 'pass' ? '✓ Passed' : item.status === 'warning' ? '⚠ Needs Work' : '✗ Failed'}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Criterion */}
-                                                        <div>
-                                                            <h5 className="text-sm font-semibold text-slate-900 mb-2">
-                                                                Criterion
-                                                            </h5>
-                                                            <p className="text-xs text-slate-700 leading-relaxed">
-                                                                {item.text}
-                                                            </p>
-                                                        </div>
-
-                                                        {/* Diagnostic Thread: Analysis + Suggested Fix */}
-                                                        {item.solution && (
-                                                            <div className="space-y-4">
-                                                                {/* Analysis Section */}
-                                                                <div className="flex gap-3">
-                                                                    <div className="flex flex-col items-center">
-                                                                        <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                                                            <Info className="w-3.5 h-3.5 text-amber-600" />
+                                                        <div className="bg-white rounded-xl p-6 space-y-6 border border-slate-200 shadow-sm">
+                                                            {/* Analysis Section */}
+                                                            {item.solution && (
+                                                                <div>
+                                                                    <div className="flex items-center gap-3 mb-3">
+                                                                        <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                                                            <Info className="w-4 h-4 text-amber-600" />
                                                                         </div>
-                                                                        {item.status !== 'pass' && (item.actionableFix || item.solution) && (
-                                                                            <div className="w-px h-full bg-gray-200 mt-2" />
-                                                                        )}
+                                                                        <h6 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                                                                            {item.status === 'pass' ? 'What\'s Working Well' : 'Analysis'}
+                                                                        </h6>
                                                                     </div>
-                                                                    <div className="flex-1 pb-2">
-                                                                        <h5 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-2">
-                                                                            {item.status === 'pass' ? 'What\'s Right' : 'Analysis'}
-                                                                        </h5>
-                                                                        <p className="text-xs text-slate-700 leading-relaxed">
+                                                                    <div className="pl-11">
+                                                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                                                                             {item.solution}
                                                                         </p>
                                                                     </div>
                                                                 </div>
-
-                                                                {/* Suggested Fix Section */}
-                                                                {item.status !== 'pass' && (item.actionableFix || item.solution) && (
-                                                                    <div className="flex gap-3">
-                                                                        <div className="flex flex-col items-center">
-                                                                            <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-                                                                                <Wrench className="w-3.5 h-3.5 text-violet-600" />
+                                                            )}
+                                                            
+                                                            {/* Suggested Fix Section */}
+                                                            {item.status !== 'pass' && ((item as any).actionableFix || item.solution) && (
+                                                                <div>
+                                                                    <div className="flex items-center justify-between mb-3">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
+                                                                                <Lightbulb className="w-4 h-4 text-purple-600" />
                                                                             </div>
+                                                                            <h6 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                                                                                Suggested fix
+                                                                            </h6>
                                                                         </div>
-                                                                        <div className="flex-1">
-                                                                            <h5 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-2">
-                                                                                Suggested Fix
-                                                                            </h5>
-                                                                            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-                                                                                {(item as any).actionableFix || item.solution}
-                                                                            </div>
-                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                const contextMessage = `Help me fix: ${item.text} in my ${selectedItem?.title} section`
+                                                                                onFix?.(`${selectedItem?.id}_item_${idx}`, contextMessage)
+                                                                            }}
+                                                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:shadow"
+                                                                        >
+                                                                            <Sparkles className="w-3.5 h-3.5" />
+                                                                            Auto-fix
+                                                                        </button>
                                                                     </div>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                                    <div className="pl-11">
+                                                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                                                                            {(item as any).actionableFix || item.solution}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            
+                                                            {/* Action button when no specific fix is available but item failed */}
+                                                            {item.status !== 'pass' && !((item as any).actionableFix || item.solution) && (
+                                                                <div className="pt-2">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            const contextMessage = `Help me fix: ${item.text} in my ${selectedItem?.title} section`
+                                                                            onFix?.(`${selectedItem?.id}_item_${idx}`, contextMessage)
+                                                                        }}
+                                                                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-sm font-medium transition-all shadow-sm hover:shadow"
+                                                                    >
+                                                                        <Sparkles className="w-4 h-4" />
+                                                                        Get personalized fix with AI
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </motion.div>
                                                 )}
                                             </AnimatePresence>

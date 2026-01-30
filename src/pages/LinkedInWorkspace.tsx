@@ -418,6 +418,10 @@ function LinkedInWorkspace() {
                 checklist={convertAuditToUnified(auditData).optimizationReport.checklist}
                 auditData={auditData}
                 isDark={isDark}
+                onSelectSection={(sectionId) => {
+                  console.log('Section selected:', sectionId)
+                  setCopilotSectionId(sectionId)
+                }}
                 onFix={(itemId, contextMessage) => {
                   console.log('onFix called with:', { itemId, contextMessage })
                   
@@ -468,6 +472,7 @@ function LinkedInWorkspace() {
                 createViewMode={createViewMode}
                 setCreateViewMode={setCreateViewMode}
                 handleDiscussWithCopilot={handleDiscussWithCopilot}
+                setCopilotSectionId={setCopilotSectionId}
               />
             </div>
           ) : (
@@ -507,6 +512,7 @@ function LinkedInWorkspace() {
             onClose={() => setRightPanelState("preview")} 
             initialMessage={copilotInitialMessage}
             onInitialMessageSent={() => setCopilotInitialMessage(undefined)}
+            currentSection={_copilotSectionId}
             profileContext={{
               hasHeadlineIssues: auditData ? (() => {
                 const unified = convertAuditToUnified(auditData)
@@ -591,6 +597,7 @@ function CreateModeContent({
   createViewMode,
   setCreateViewMode,
   handleDiscussWithCopilot,
+  setCopilotSectionId,
 }: {
   profileData: ParsedProfile
   auditData: LinkedInAudit | UnifiedLinkedInAudit | null
@@ -608,6 +615,7 @@ function CreateModeContent({
   createViewMode: CreateViewMode
   setCreateViewMode: (mode: CreateViewMode) => void
   handleDiscussWithCopilot: (title: string, prompts: string[], isReview: boolean, sectionId?: string, initialMessage?: string) => void
+  setCopilotSectionId: (id: string | null) => void
 }) {
   // Build sections from parsed profile
   const sections = [
@@ -710,6 +718,10 @@ function CreateModeContent({
               checklist={unifiedAudit.optimizationReport.checklist}
               auditData={unifiedAudit}
               isDark={isDark}
+              onSelectSection={(sectionId) => {
+                console.log('Section selected in create mode:', sectionId)
+                setCopilotSectionId(sectionId)
+              }}
               onFix={(itemId, contextMessage) => {
                 console.log('onFix called in create mode with:', { itemId, contextMessage })
                 

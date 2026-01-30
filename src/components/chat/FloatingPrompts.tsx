@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { Sparkles, TrendingUp, Target, Zap, CornerDownLeft } from "lucide-react"
 
 interface FloatingPromptsProps {
@@ -11,6 +11,7 @@ interface FloatingPromptsProps {
     hasSkillsIssues?: boolean
     overallScore?: number
   }
+  currentSection?: string | null  // NEW: Currently selected section
 }
 
 // Categorized prompts based on profile issues
@@ -39,6 +40,54 @@ const PROMPT_CATEGORIES = {
     "Which skills are most important for my industry?",
     "Should I prioritize hard skills or soft skills?",
   ],
+  photo: [
+    "What makes a great LinkedIn profile photo?",
+    "Should I use a professional headshot or casual photo?",
+    "What background works best for profile photos?",
+    "How do I optimize my photo for LinkedIn?",
+  ],
+  profile_photo: [
+    "What makes a great LinkedIn profile photo?",
+    "Should I use a professional headshot or casual photo?",
+    "What background works best for profile photos?",
+    "How do I optimize my photo for LinkedIn?",
+  ],
+  banner: [
+    "What should I put in my LinkedIn banner?",
+    "How do I create a custom banner image?",
+    "What are the best banner dimensions for LinkedIn?",
+    "Should my banner match my personal brand?",
+  ],
+  education: [
+    "Should I include my GPA on LinkedIn?",
+    "How do I highlight academic achievements?",
+    "What coursework should I list?",
+    "How far back should my education history go?",
+  ],
+  certifications: [
+    "Which certifications are most valuable for my field?",
+    "How do I display certifications effectively?",
+    "Should I include expired certifications?",
+    "What's the ROI of professional certifications?",
+  ],
+  certs: [
+    "Which certifications are most valuable for my field?",
+    "How do I display certifications effectively?",
+    "Should I include expired certifications?",
+    "What's the ROI of professional certifications?",
+  ],
+  url: [
+    "How do I create a custom LinkedIn URL?",
+    "What's the best format for my LinkedIn URL?",
+    "Can I change my LinkedIn URL later?",
+    "Should my URL match other social profiles?",
+  ],
+  custom_url: [
+    "How do I create a custom LinkedIn URL?",
+    "What's the best format for my LinkedIn URL?",
+    "Can I change my LinkedIn URL later?",
+    "Should my URL match other social profiles?",
+  ],
   general: [
     "What's the #1 thing I should fix first?",
     "How can I increase my profile views?",
@@ -49,34 +98,52 @@ const PROMPT_CATEGORIES = {
   ],
 }
 
-export function FloatingPrompts({ onPromptClick, profileContext }: FloatingPromptsProps) {
+export function FloatingPrompts({ onPromptClick, profileContext, currentSection }: FloatingPromptsProps) {
   const [currentPrompts, setCurrentPrompts] = useState<string[]>([])
 
-  // Generate smart prompts based on profile context
+  // Generate smart prompts based on current section or profile context
   useEffect(() => {
     const prompts: string[] = []
     
-    // Add issue-specific prompts
-    if (profileContext?.hasHeadlineIssues) {
-      prompts.push(...PROMPT_CATEGORIES.headline.slice(0, 2))
+    // If a specific section is selected, show section-specific prompts
+    if (currentSection) {
+      const sectionKey = currentSection.toLowerCase()
+      
+      // Try to match section key to prompt categories
+      const matchedCategory = Object.keys(PROMPT_CATEGORIES).find(key => 
+        sectionKey.includes(key) || key.includes(sectionKey)
+      )
+      
+      if (matchedCategory && PROMPT_CATEGORIES[matchedCategory as keyof typeof PROMPT_CATEGORIES]) {
+        prompts.push(...PROMPT_CATEGORIES[matchedCategory as keyof typeof PROMPT_CATEGORIES])
+      } else {
+        // For unmatched sections, show general prompts
+        prompts.push(...PROMPT_CATEGORIES.general)
+      }
+    } else {
+      // No specific section - use profile context to determine prompts
+      // Add issue-specific prompts
+      if (profileContext?.hasHeadlineIssues) {
+        prompts.push(...PROMPT_CATEGORIES.headline.slice(0, 2))
+      }
+      if (profileContext?.hasAboutIssues) {
+        prompts.push(...PROMPT_CATEGORIES.about.slice(0, 2))
+      }
+      if (profileContext?.hasExperienceIssues) {
+        prompts.push(...PROMPT_CATEGORIES.experience.slice(0, 1))
+      }
+      if (profileContext?.hasSkillsIssues) {
+        prompts.push(...PROMPT_CATEGORIES.skills.slice(0, 1))
+      }
+      
+      // Always add some general prompts
+      prompts.push(...PROMPT_CATEGORIES.general.slice(0, 3))
     }
-    if (profileContext?.hasAboutIssues) {
-      prompts.push(...PROMPT_CATEGORIES.about.slice(0, 2))
-    }
-    if (profileContext?.hasExperienceIssues) {
-      prompts.push(...PROMPT_CATEGORIES.experience.slice(0, 1))
-    }
-    if (profileContext?.hasSkillsIssues) {
-      prompts.push(...PROMPT_CATEGORIES.skills.slice(0, 1))
-    }
-    
-    // Always add some general prompts
-    prompts.push(...PROMPT_CATEGORIES.general.slice(0, 3))
     
     // Shuffle and limit to 4 prompts (2x2 grid)
     const shuffled = prompts.sort(() => Math.random() - 0.5).slice(0, 4)
     setCurrentPrompts(shuffled)
-  }, [profileContext])
+  }, [profileContext, currentSection])
 
   if (currentPrompts.length === 0) return null
 
