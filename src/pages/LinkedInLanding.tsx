@@ -160,39 +160,27 @@ export default function LinkedInLanding() {
     if ((selectedMode === "review" || selectedMode === "improve") && linkedInUrl.trim()) {
       try {
         setIsExtracting(true)
+        setLoadingMessage("Fetching your LinkedIn profile...")
         
-        // Cycle through loading messages
-        const messages = [
-          "Evaluating your LinkedIn...",
-          "Analyzing your profile...",
-          "Almost ready...",
-          "How's the weather outside?",
-          "Crunching the numbers...",
-          "Almost done..."
-        ]
+        // PHASE 1: Fetch profile quickly (2-3 seconds)
+        const profileResult = await resumeService.fetchLinkedInProfile(linkedInUrl.trim())
         
-        let messageIndex = 0
-        setLoadingMessage(messages[0])
+        // Store profile in context
+        setParsedProfile(profileResult.profile)
         
-        const messageInterval = setInterval(() => {
-          messageIndex = (messageIndex + 1) % messages.length
-          setLoadingMessage(messages[messageIndex])
-        }, 2000) // Change message every 2 seconds
-
-        const result = await resumeService.extractLinkedInFromUrl(linkedInUrl.trim())
-        
-        clearInterval(messageInterval)
-        
-        // Store audit in context
-        setLinkedInAudit(result.audit)
-
-        // Navigate to workspace
-        navigate(`/linkedin/workspace/${result.projectId}`, {
+        // Navigate to workspace immediately with profile data (no audit yet)
+        navigate(`/linkedin/workspace/${profileResult.projectId}`, {
           state: {
-            linkedInAudit: result.audit,
+            parsedProfile: profileResult.profile,
             startMode: selectedMode,
+            isLoadingAudit: true, // Signal that audit is still loading
+            linkedInUrl: linkedInUrl.trim(),
           },
         })
+        
+        // PHASE 2: Run audit in background (will be handled by workspace)
+        // The workspace will poll or fetch the audit
+        
       } catch (error) {
         console.error("URL extraction failed:", error)
         // TODO: Show error toast

@@ -31,6 +31,7 @@ import type {
 import { CreationCard } from "@/components/CreationCard"
 import { ChatShell } from "@/components/chat/ChatShell"
 import { OptimizationSidebar } from "@/components/OptimizationSidebar"
+import { OptimizationSidebarSkeleton } from "@/components/OptimizationSidebarSkeleton"
 import { AskAIButton } from "@/components/AskAIButton"
 import { useApp } from "@/contexts/AppContext"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -109,6 +110,8 @@ function LinkedInWorkspace() {
     linkedInAudit?: LinkedInAudit;
     startMode?: WorkspaceMode;
     resumeUrl?: string;
+    isLoading?: boolean;  // NEW: Indicates progressive loading
+    linkedInUrl?: string;  // NEW: URL being analyzed
   } | null
 
   const [workspaceMode] = React.useState<WorkspaceMode>(
@@ -128,6 +131,7 @@ function LinkedInWorkspace() {
   const [copiedSection, setCopiedSection] = React.useState<string | null>(null)
 
   const [isLoading, setIsLoading] = React.useState(true)
+  const [isAuditLoading, setIsAuditLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [auditData, setAuditData] = React.useState<LinkedInAudit | UnifiedLinkedInAudit | null>(null)
   const [profileData, setProfileData] = React.useState<ParsedProfile | null>(null)
@@ -161,48 +165,148 @@ function LinkedInWorkspace() {
       }
 
       try {
-        setIsLoading(true)
         setError(null)
 
-        const navState = location.state as { parsedProfile?: ParsedProfile; linkedInAudit?: LinkedInAudit } | null
+        const navState = location.state as { 
+          parsedProfile?: ParsedProfile; 
+          linkedInAudit?: LinkedInAudit; 
+          startMode?: WorkspaceMode;
+          isLoadingAudit?: boolean;
+          linkedInUrl?: string;
+        } | null
+        
+        // If we have audit data from navigation, use it immediately
         if (navState?.linkedInAudit) {
           setAuditData(navState.linkedInAudit)
           setLinkedInAudit(navState.linkedInAudit)
+          // Extract profile from audit
+          if (navState.linkedInAudit?.userProfile) {
+            const profile: ParsedProfile = {
+              basics: {
+                name: navState.linkedInAudit.userProfile?.fullName || '',
+                headline: navState.linkedInAudit.userProfile?.headline || '',
+                about: navState.linkedInAudit.userProfile?.about || '',
+                location: navState.linkedInAudit.userProfile?.location || '',
+                email: navState.linkedInAudit.userProfile?.email || '',
+              },
+              experience: navState.linkedInAudit.userProfile?.experience || [],
+              education: navState.linkedInAudit.userProfile?.education || [],
+              skills: navState.linkedInAudit.userProfile?.skills || [],
+              certifications: navState.linkedInAudit.userProfile?.certifications || [],
+              projects: [],
+              languages: navState.linkedInAudit.userProfile?.languages || [],
+              analysis: {
+                missingSections: [],
+                overallScore: 50,
+                feedback: '',
+                strengths: [],
+                improvements: [],
+              },
+            }
+            setProfileData(profile)
+            setParsedProfile(profile)
+          }
           setIsLoading(false)
           return
         }
 
+        // PROGRESSIVE LOADING: If we have profile data but audit is still loading
+        if (navState?.parsedProfile && navState?.isLoadingAudit) {
+          console.log('Progressive loading: Profile received, starting audit in background')
+          setProfileData(navState.parsedProfile)
+          setParsedProfile(navState.parsedProfile)
+          setIsLoading(false) // Show UI immediately with profile data
+          setIsAuditLoading(true) // Show skeleton on left side
+          
+          // Start audit in background
+          if (resumeId) {
+            resumeService.extractLinkedInFromUrl(navState.linkedInUrl || '')
+              .then(result => {
+                console.log('Audit completed, updating UI')
+                setAuditData(result.audit)
+                setLinkedInAudit(result.audit)
+                setIsAuditLoading(false)
+                
+                // Update URL to use real project ID if different
+                if (result.projectId !== resumeId) {
+                  navigate(`/linkedin/workspace/${result.projectId}`, {
+                    state: {
+                      linkedInAudit: result.audit,
+                      startMode: navState?.startMode,
+                    },
+                    replace: true,
+                  })
+                }
+              })
+              .catch(err => {
+                console.error('Audit failed:', err)
+                setError('Failed to analyze profile. Please try again.')
+                setIsAuditLoading(false)
+              })
+          }
+          return
+        }
+
+        // If we have profile data from navigation (without audit loading), set it immediately
         if (navState?.parsedProfile) {
           setProfileData(navState.parsedProfile)
           setParsedProfile(navState.parsedProfile)
+          setIsLoading(false) // Show UI immediately with profile data
         }
 
-        if (linkedInAudit) {
+        // Check context for existing data
+        if (linkedInAudit && !navState?.linkedInAudit) {
           setAuditData(linkedInAudit)
+          // Extract profile from audit if not already set
+          if (linkedInAudit?.userProfile && !profileData) {
+            const profile: ParsedProfile = {
+              basics: {
+                name: linkedInAudit.userProfile?.fullName || '',
+                headline: linkedInAudit.userProfile?.headline || '',
+                about: linkedInAudit.userProfile?.about || '',
+                location: linkedInAudit.userProfile?.location || '',
+                email: linkedInAudit.userProfile?.email || '',
+              },
+              experience: linkedInAudit.userProfile?.experience || [],
+              education: linkedInAudit.userProfile?.education || [],
+              skills: linkedInAudit.userProfile?.skills || [],
+              certifications: linkedInAudit.userProfile?.certifications || [],
+              projects: [],
+              languages: linkedInAudit.userProfile?.languages || [],
+              analysis: {
+                missingSections: [],
+                overallScore: 50,
+                feedback: '',
+                strengths: [],
+                improvements: [],
+              },
+            }
+            setProfileData(profile)
+            setParsedProfile(profile)
+          }
           setIsLoading(false)
-          return
         }
 
-        if (contextParsedProfile && !profileData) {
+        if (contextParsedProfile && !profileData && !navState?.parsedProfile) {
           setProfileData(contextParsedProfile)
+          setIsLoading(false) // Show UI immediately with profile data
         }
 
+        // Fetch resume data
         const resume = await resumeService.getResume(resumeId)
         setResumeItem(resume)
 
-        // Set resume URL for viewing (construct from S3 key if available)
-        if (resume.resumeS3Key) {
-          // For now, we'll need to generate a presigned URL or use a different approach
-          // The resume URL will be set from navigation state if available
+        // Set profile data if available and show UI immediately
+        if (resume.parsedProfile && !profileData && !navState?.parsedProfile) {
+          setProfileData(resume.parsedProfile)
+          setParsedProfile(resume.parsedProfile)
+          setIsLoading(false) // Show UI immediately with profile data
         }
 
-        // In CREATE mode, only use audit if it matches the current profile
-        // Otherwise, clear it to avoid showing data from a different profile
+        // Handle audit data based on mode (this happens in background)
         if (workspaceMode === "create") {
-          // Only set audit data if it's explicitly for this profile
-          // For now, clear any existing audit to avoid confusion
+          // In CREATE mode, only use audit if it matches the current profile
           if (resume.linkedInAudit && resume.parsedProfile) {
-            // Check if audit matches the parsed profile by comparing names
             const auditName = resume.linkedInAudit.userProfile?.fullName
             const profileName = resume.parsedProfile.basics?.name
 
@@ -210,40 +314,118 @@ function LinkedInWorkspace() {
               setAuditData(resume.linkedInAudit)
               setLinkedInAudit(resume.linkedInAudit)
             } else {
-              // Names don't match - clear audit data
               setAuditData(null)
             }
           } else {
             setAuditData(null)
           }
+          // Show UI for create mode
+          setIsLoading(false)
         } else {
-          // Review/Improve modes - use audit data normally
+          // Review/Improve modes - fetch or use existing audit
           if (resume.linkedInAudit) {
             setAuditData(resume.linkedInAudit)
             setLinkedInAudit(resume.linkedInAudit)
+            // Extract profile from audit
+            if (resume.linkedInAudit?.userProfile && !profileData) {
+              const profile: ParsedProfile = {
+                basics: {
+                  name: resume.linkedInAudit.userProfile?.fullName || '',
+                  headline: resume.linkedInAudit.userProfile?.headline || '',
+                  about: resume.linkedInAudit.userProfile?.about || '',
+                  location: resume.linkedInAudit.userProfile?.location || '',
+                  email: resume.linkedInAudit.userProfile?.email || '',
+                },
+                experience: resume.linkedInAudit.userProfile?.experience || [],
+                education: resume.linkedInAudit.userProfile?.education || [],
+                skills: resume.linkedInAudit.userProfile?.skills || [],
+                certifications: resume.linkedInAudit.userProfile?.certifications || [],
+                projects: [],
+                languages: resume.linkedInAudit.userProfile?.languages || [],
+                analysis: {
+                  missingSections: [],
+                  overallScore: 50,
+                  feedback: '',
+                  strengths: [],
+                  improvements: [],
+                },
+              }
+              setProfileData(profile)
+              setParsedProfile(profile)
+            }
+            setIsLoading(false)
           } else {
-            try {
-              const response = await resumeService.auditLinkedInProfile(resumeId)
-              setAuditData(response.audit)
-              setLinkedInAudit(response.audit)
-            } catch (auditError: any) {
-              console.error("Failed to generate audit:", auditError)
+            // No existing audit - need to generate it
+            // Check if this is a URL-extracted profile (has linkedInSource or resumeS3Key starts with 'linkedin-url/')
+            const isUrlExtracted = resume.resumeS3Key?.startsWith('linkedin-url/')
+            
+            if (isUrlExtracted) {
+              // URL-extracted profiles should already have audit data
+              // If not, something went wrong - show error
+              console.error("URL-extracted profile missing audit data")
+              setError("Profile data is incomplete. Please try extracting the LinkedIn profile again.")
+              setIsLoading(false)
+            } else {
+              // PDF-based profile - generate audit
+              // Show UI immediately with skeleton
+              setIsLoading(false)
+              setIsAuditLoading(true)
+              
+              // Start audit generation in background
+              resumeService.auditLinkedInProfile(resumeId)
+                .then(response => {
+                  setAuditData(response.audit)
+                  setLinkedInAudit(response.audit)
+                  // Extract profile from audit
+                  if (response.audit?.userProfile && !profileData) {
+                    const profile: ParsedProfile = {
+                      basics: {
+                        name: response.audit.userProfile?.fullName || '',
+                        headline: response.audit.userProfile?.headline || '',
+                        about: response.audit.userProfile?.about || '',
+                        location: response.audit.userProfile?.location || '',
+                        email: response.audit.userProfile?.email || '',
+                      },
+                      experience: response.audit.userProfile?.experience || [],
+                      education: response.audit.userProfile?.education || [],
+                      skills: response.audit.userProfile?.skills || [],
+                      certifications: response.audit.userProfile?.certifications || [],
+                      projects: [],
+                      languages: response.audit.userProfile?.languages || [],
+                      analysis: {
+                        missingSections: [],
+                        overallScore: 50,
+                        feedback: '',
+                        strengths: [],
+                        improvements: [],
+                      },
+                    }
+                    setProfileData(profile)
+                    setParsedProfile(profile)
+                  }
+                })
+                .catch(auditError => {
+                  console.error("Failed to generate audit:", auditError)
+                  setError("Failed to analyze LinkedIn profile. Please try again.")
+                })
+                .finally(() => {
+                  setIsAuditLoading(false)
+                })
             }
           }
         }
-
-        if (resume.parsedProfile && !profileData) {
-          setProfileData(resume.parsedProfile)
-          setParsedProfile(resume.parsedProfile)
-        }
       } catch (err: any) {
+        console.error('=== Error in loadData ===')
+        console.error('Error object:', err)
+        console.error('Error message:', err.message)
+        console.error('Error stack:', err.stack)
         setError(err.message || "Failed to load profile data")
-      } finally {
         setIsLoading(false)
       }
     }
 
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId, location.state])
 
   const toggleSection = (sectionId: string) => {
@@ -317,7 +499,8 @@ function LinkedInWorkspace() {
     )
   }
 
-  if (error || (!auditData && !profileData)) {
+  // Show error screen only if there's an actual error OR we have no data after loading completes
+  if (error || (!isLoading && !isAuditLoading && !auditData && !profileData)) {
     return (
       <div className={cn(
         "h-screen flex items-center justify-center font-['Inter',sans-serif]",
@@ -411,7 +594,13 @@ function LinkedInWorkspace() {
       ) : (
         <div className="flex-1 flex flex-col min-h-0 relative">
           {/* UNIFIED OPTIMIZER - Single View */}
-          {((workspaceMode === "review" || workspaceMode === "improve") && auditData) ? (
+          {/* Show skeleton FIRST if audit is loading (even if we have profile data) */}
+          {((workspaceMode === "review" || workspaceMode === "improve") && isAuditLoading && !auditData) ? (
+            /* Show skeleton while audit is loading */
+            <div className="h-full p-4 overflow-hidden">
+              <OptimizationSidebarSkeleton isDark={isDark} />
+            </div>
+          ) : ((workspaceMode === "review" || workspaceMode === "improve") && auditData) ? (
             <div className="h-full p-4 overflow-hidden">
               <OptimizationSidebar
                 totalScore={convertAuditToUnified(auditData).optimizationReport.totalScore}
@@ -475,8 +664,13 @@ function LinkedInWorkspace() {
                 setCopilotSectionId={setCopilotSectionId}
               />
             </div>
+          ) : (workspaceMode === "review" || workspaceMode === "improve") ? (
+            /* Fallback for review/improve - show skeleton while waiting */
+            <div className="h-full p-4 overflow-hidden">
+              <OptimizationSidebarSkeleton isDark={isDark} />
+            </div>
           ) : (
-            /* Fallback */
+            /* Fallback for other modes */
             <div className="flex-1 flex items-center justify-center p-8">
               <FallbackContent
                 isDark={isDark}
@@ -926,7 +1120,9 @@ function PreviewPanel({
           <div className="relative">
             {/* Banner Image */}
             {(() => {
+              const rawProfile = profileData?._rawProfile;
               const bannerUrl = 
+                rawProfile?.backgroundPictureUrl ||
                 auditData?.userProfile?.backgroundPictureUrl || 
                 auditData?.userProfile?.background_picture_url || 
                 (auditData as any)?.backgroundPictureUrl ||
@@ -957,8 +1153,10 @@ function PreviewPanel({
               {(() => {
                 const profile = auditData?.userProfile;
                 const root = auditData as any;
+                const rawProfile = profileData?._rawProfile;
 
-                const picUrl = profile?.profile_picture_url_large ||
+                const picUrl = rawProfile?.profilePictureUrl ||
+                  profile?.profile_picture_url_large ||
                   profile?.profilePictureUrl ||
                   profile?.profile_picture_url ||
                   (profile as any)?.picture ||

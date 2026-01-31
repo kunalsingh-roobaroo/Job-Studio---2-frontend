@@ -214,6 +214,22 @@ export interface ParsedProfile {
   projects: ParsedProject[];
   languages: string[];
   analysis: ParsedAnalysis;
+  // Raw profile data from Unipile (for progressive loading preview)
+  _rawProfile?: {
+    fullName?: string;
+    headline?: string;
+    about?: string;
+    location?: string;
+    connections?: string;
+    profilePictureUrl?: string;
+    backgroundPictureUrl?: string;
+    experience?: any[];
+    education?: any[];
+    skills?: string[];
+    certifications?: any[];
+    publications?: any[];
+    languages?: string[];
+  };
 }
 
 export interface ParseResumeResponse {

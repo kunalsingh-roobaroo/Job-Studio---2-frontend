@@ -129,11 +129,104 @@ export async function listResumes(limit?: number): Promise<ResumeItemSummary[]> 
 }
 
 /**
- * Fetch a full resume item by ID
+ * Get a single resume by ID with full details
  */
 export async function getResume(resumeId: string): Promise<ResumeItem> {
   const response = await apiClient.get<ResumeItem>(`/resumes/${resumeId}`);
   return response.data;
+}
+
+/**
+ * Fetch LinkedIn profile quickly (no audit) - for progressive loading
+ * Returns profile data immediately, call extractLinkedInFromUrl for full audit
+ */
+export async function fetchLinkedInProfile(
+  linkedinUrl: string
+): Promise<{ projectId: string; profile: ParsedProfile }> {
+  const result = await apiClient.post<{ id: string; profile: any }>(
+    '/linkedin/fetch-profile',
+    {
+      linkedin_url: linkedinUrl,
+    },
+    { timeout: 30000 } // 30 seconds - just Unipile fetch
+  );
+
+  // Convert backend profile format to ParsedProfile
+  const profile: ParsedProfile = {
+    basics: {
+      name: result.data.profile.fullName || '',
+      headline: result.data.profile.headline || '',
+      about: result.data.profile.about || '',
+      location: result.data.profile.location || '',
+      email: result.data.profile.email || '',
+    },
+    experience: result.data.profile.experience || [],
+    education: result.data.profile.education || [],
+    skills: result.data.profile.skills || [],
+    certifications: result.data.profile.certifications || [],
+    projects: [],
+    languages: result.data.profile.languages || [],
+    analysis: {
+      missingSections: [],
+      overallScore: 0,
+      feedback: '',
+      strengths: [],
+      improvements: [],
+    },
+    // Store raw profile for preview
+    _rawProfile: result.data.profile,
+  };
+
+  return {
+    projectId: result.data.id,
+    profile,
+  };
+}
+
+/**
+ * Run audit on existing project (after profile fetch)
+ */
+export async function runLinkedInAudit(
+  projectId: string,
+  options?: {
+    target_role?: string;
+  }
+): Promise<{ audit: LinkedInAudit | UnifiedLinkedInAudit }> {
+  const result = await apiClient.post<LinkedInAuditResponse>(
+    `/linkedin/audit-project/${projectId}`,
+    {
+      target_role: options?.target_role,
+    },
+    { timeout: 300000 } // 5 minutes for LLM analysis
+  );
+
+  return {
+    audit: result.data.audit,
+  };
+}
+
+/**
+ * Accepts LinkedIn URL or username and returns comprehensive audit
+ */
+export async function extractLinkedInFromUrl(
+  linkedinUrl: string,
+  options?: {
+    target_role?: string;
+  }
+): Promise<{ projectId: string; audit: LinkedInAudit | UnifiedLinkedInAudit }> {
+  const result = await apiClient.post<LinkedInAuditResponse>(
+    '/linkedin/extract-from-url',
+    {
+      linkedin_url: linkedinUrl,
+      target_role: options?.target_role,
+    },
+    { timeout: 300000 } // 5 minutes - LinkedIn URL analysis makes 3 LLM calls (breakdown, checklist, experience)
+  );
+
+  return {
+    projectId: result.data.id,
+    audit: result.data.audit,
+  };
 }
 
 /**
@@ -159,31 +252,6 @@ export async function auditLinkedInProfile(resumeId: string): Promise<LinkedInAu
     { timeout: 120000 }
   );
   return response.data;
-}
-
-/**
- * Extract and audit LinkedIn profile from URL using Unipile API
- * Accepts LinkedIn URL or username and returns comprehensive audit
- */
-export async function extractLinkedInFromUrl(
-  linkedinUrl: string,
-  options?: {
-    target_role?: string;
-  }
-): Promise<{ projectId: string; audit: LinkedInAudit | UnifiedLinkedInAudit }> {
-  const result = await apiClient.post<LinkedInAuditResponse>(
-    '/linkedin/extract-from-url',
-    {
-      linkedin_url: linkedinUrl,
-      target_role: options?.target_role,
-    },
-    { timeout: 300000 } // 5 minutes - LinkedIn URL analysis makes 3 LLM calls (breakdown, checklist, experience)
-  );
-
-  return {
-    projectId: result.data.id,
-    audit: result.data.audit,
-  };
 }
 
 /**
@@ -276,6 +344,8 @@ const resumeService = {
   getResume,
   optimizeLinkedInProfile,
   auditLinkedInProfile,
+  fetchLinkedInProfile,
+  runLinkedInAudit,
   extractLinkedInFromUrl,
   reviewLinkedInProfile,
   improveLinkedInProfile,
