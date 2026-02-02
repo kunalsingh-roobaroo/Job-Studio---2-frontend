@@ -2,6 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { ChevronDown, CheckCircle2, AlertTriangle, XCircle, Sparkles } from "lucide-react"
 import type { ChecklistItem as ChecklistItemType } from "@/services/api/types"
+import { AutoFixButton } from "@/components/ui/AutoFixButton"
 
 interface ChecklistItemProps {
   item: ChecklistItemType
@@ -124,13 +125,14 @@ export function ChecklistItem({
             {activeTab === "fix" && (
               <div className="space-y-3">
                 {/* Auto-Fix Button */}
-                <button
+                <AutoFixButton
+                  variant="glass-glow"
+                  size="lg"
+                  label="Auto-Fix with Copilot"
+                  loadingLabel="Fixing..."
+                  className="w-full justify-center"
                   onClick={onAutoFix}
-                  className="w-full h-10 px-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Auto-Fix with Copilot
-                </button>
+                />
 
                 {/* Fix Suggestion Preview */}
                 {item.fixSuggestion && (

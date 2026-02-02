@@ -15,6 +15,7 @@ export default function LinkedInReview() {
   const [isUploading, setIsUploading] = React.useState(false)
   const [isExtracting, setIsExtracting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [progressMessage, setProgressMessage] = React.useState<string>("")
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // Get LinkedIn URL from navigation state if provided
@@ -72,8 +73,14 @@ export default function LinkedInReview() {
     try {
       setIsExtracting(true)
       setError(null)
+      setProgressMessage("Starting LinkedIn profile analysis...")
 
-      const result = await resumeService.extractLinkedInFromUrl(linkedInUrl.trim())
+      // Start async job and poll for completion with progress updates
+      const result = await resumeService.extractLinkedInFromUrl(linkedInUrl.trim(), {
+        onProgress: (progress) => {
+          setProgressMessage(progress)
+        },
+      })
 
       // Store audit in context
       setLinkedInAudit(result.audit)
@@ -89,6 +96,7 @@ export default function LinkedInReview() {
       setError(err.message || "Failed to extract LinkedIn profile from URL")
     } finally {
       setIsExtracting(false)
+      setProgressMessage("")
     }
   }
 
@@ -138,19 +146,23 @@ export default function LinkedInReview() {
               {isExtracting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyzing Profile (this may take 2-3 minutes)...
+                  Analyzing...
                 </>
               ) : (
                 "Extract Profile"
               )}
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            {isExtracting 
-              ? "Fetching profile data and running comprehensive analysis with AI..." 
-              : "We'll automatically extract your profile data using the URL"
-            }
-          </p>
+          {isExtracting && progressMessage && (
+            <div className="mt-3 p-3 bg-purple-50 border border-purple-100 rounded-xl">
+              <p className="text-sm text-purple-700 text-center">{progressMessage}</p>
+            </div>
+          )}
+          {!isExtracting && (
+            <p className="text-xs text-gray-500 mt-2">
+              We'll automatically extract your profile data using the URL
+            </p>
+          )}
         </div>
 
         {/* Divider */}

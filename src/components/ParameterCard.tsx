@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { Check, AlertCircle, ChevronRight, Sparkles } from "lucide-react"
 import type { ChecklistItem } from "@/services/api/types"
+import { AutoFixButton } from "@/components/ui/AutoFixButton"
 
 interface ParameterCardProps {
     item: ChecklistItem
@@ -114,19 +115,17 @@ export function ParameterCard({
                             )}
 
                             {!isPassed && (
-                                <button
+                                <AutoFixButton
+                                    variant="glass-glow"
+                                    size="md"
+                                    label="Fix with Copilot"
+                                    loadingLabel="Fixing..."
+                                    className="w-full justify-center"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         onAutoFix()
                                     }}
-                                    className={cn(
-                                        "w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-white shadow-sm hover:shadow-md hover:scale-[1.02]",
-                                    )}
-                                    style={{ background: `linear-gradient(135deg, ${accentColor}, ${accentColor})` }}
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    Fix with Copilot
-                                </button>
+                                />
                             )}
                         </div>
                     </motion.div>

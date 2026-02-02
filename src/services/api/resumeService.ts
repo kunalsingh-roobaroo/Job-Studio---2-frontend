@@ -206,26 +206,118 @@ export async function runLinkedInAudit(
 }
 
 /**
- * Accepts LinkedIn URL or username and returns comprehensive audit
+ * Check job status for async LinkedIn analysis
+ */
+export async function checkLinkedInJobStatus(
+  jobId: string
+): Promise<{
+  status: 'processing' | 'completed' | 'failed';
+  message: string;
+  audit?: LinkedInAudit | UnifiedLinkedInAudit;
+  error?: string;
+  progress?: string;
+}> {
+  const result = await apiClient.get<{
+    id: string;
+    status: string;
+    message: string;
+    audit?: any;
+    error?: string;
+    progress?: string;
+  }>(`/linkedin/job-status/${jobId}`);
+
+  return {
+    status: result.data.status as 'processing' | 'completed' | 'failed',
+    message: result.data.message,
+    audit: result.data.audit,
+    error: result.data.error,
+    progress: result.data.progress,
+  };
+}
+
+/**
+ * Poll for job completion with exponential backoff
+ */
+async function pollForJobCompletion(
+  jobId: string,
+  onProgress?: (progress: string) => void,
+  maxAttempts: number = 60, // 60 attempts
+  initialDelay: number = 2000 // Start with 2 seconds
+): Promise<LinkedInAudit | UnifiedLinkedInAudit> {
+  let attempts = 0;
+  let delay = initialDelay;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    // Wait before checking
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    // Check status
+    const status = await checkLinkedInJobStatus(jobId);
+    
+    if (status.status === 'completed') {
+      if (!status.audit) {
+        throw new Error('Job completed but no audit data returned');
+      }
+      return status.audit;
+    }
+    
+    if (status.status === 'failed') {
+      throw new Error(status.error || 'LinkedIn analysis failed');
+    }
+    
+    // Still processing - update progress
+    if (onProgress && status.progress) {
+      onProgress(status.progress);
+    }
+    
+    // Exponential backoff: 2s, 3s, 4s, 5s, then stay at 5s
+    delay = Math.min(delay + 1000, 5000);
+  }
+  
+  throw new Error('LinkedIn analysis timed out after 5 minutes');
+}
+
+/**
+ * Accepts LinkedIn URL or username and returns comprehensive audit (ASYNC)
+ * Now uses background processing with polling
  */
 export async function extractLinkedInFromUrl(
   linkedinUrl: string,
   options?: {
     target_role?: string;
+    onProgress?: (progress: string) => void;
   }
 ): Promise<{ projectId: string; audit: LinkedInAudit | UnifiedLinkedInAudit }> {
-  const result = await apiClient.post<LinkedInAuditResponse>(
+  // Start async job
+  const result = await apiClient.post<{
+    id: string;
+    status: string;
+    message: string;
+    progress?: string;
+  }>(
     '/linkedin/extract-from-url',
     {
       linkedin_url: linkedinUrl,
       target_role: options?.target_role,
     },
-    { timeout: 300000 } // 5 minutes - LinkedIn URL analysis makes 3 LLM calls (breakdown, checklist, experience)
+    { timeout: 30000 } // 30 seconds - just to start the job
   );
 
+  const jobId = result.data.id;
+  
+  // Initial progress update
+  if (options?.onProgress && result.data.progress) {
+    options.onProgress(result.data.progress);
+  }
+
+  // Poll for completion
+  const audit = await pollForJobCompletion(jobId, options?.onProgress);
+
   return {
-    projectId: result.data.id,
-    audit: result.data.audit,
+    projectId: jobId,
+    audit,
   };
 }
 

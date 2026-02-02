@@ -8,6 +8,7 @@ import {
     CheckCircle2, AlertTriangle, Lightbulb, Sparkles,
     Info
 } from "lucide-react"
+import { AutoFixButton } from "@/components/ui/AutoFixButton"
 
 import type { UnifiedLinkedInAudit, LinkedInAudit, ChecklistItem, BannerSection, EnhancedLinkedInAuditResult } from "@/services/api/types"
 
@@ -149,6 +150,184 @@ const BANNER_BEST_PRACTICES: Record<string, string[]> = {
         "Include certification IDs and expiration dates for credibility",
         "Prioritize certifications that align with your target roles"
     ]
+}
+
+// Best Practice Images - Add your image URLs here
+// You can use local images from /public folder or external URLs
+const BEST_PRACTICE_IMAGES: Record<string, string> = {
+    // Photo/Headshot practices
+    "headshot": "/images/best-practices/headshot-example.jpg",
+    "photo": "/images/best-practices/headshot-example.jpg",
+    "professional attire": "/images/best-practices/professional-attire.jpg",
+    "eye contact": "/images/best-practices/eye-contact.jpg",
+    "background": "/images/best-practices/neutral-background.jpg",
+    
+    // Banner practices
+    "banner": "/images/best-practices/banner-example.jpg",
+    "1584x396": "/images/best-practices/banner-size.jpg",
+    
+    // Headline practices
+    "headline": "/images/best-practices/headline-example.jpg",
+    "120-220": "/images/best-practices/headline-length.jpg",
+    "value proposition": "/images/best-practices/value-proposition.jpg",
+    "keyword": "/images/best-practices/keywords-example.jpg",
+    
+    // About section practices
+    "hook": "/images/best-practices/about-hook.jpg",
+    "opening": "/images/best-practices/about-hook.jpg",
+    "first-person": "/images/best-practices/first-person.jpg",
+    "call-to-action": "/images/best-practices/cta-example.jpg",
+    
+    // Experience practices
+    "action verb": "/images/best-practices/action-verbs.jpg",
+    "metric": "/images/best-practices/metrics-example.jpg",
+    "achievement": "/images/best-practices/achievements.jpg",
+    "star": "/images/best-practices/star-format.jpg",
+    "bullet": "/images/best-practices/bullet-points.jpg",
+    
+    // Skills practices
+    "skill": "/images/best-practices/skills-section.jpg",
+    "endorsement": "/images/best-practices/endorsements.jpg",
+    "30+": "/images/best-practices/skills-count.jpg",
+    
+    // URL practices
+    "custom url": "/images/best-practices/custom-url.jpg",
+    "linkedin.com/in": "/images/best-practices/custom-url.jpg",
+    
+    // Education practices
+    "education": "/images/best-practices/education-section.jpg",
+    "gpa": "/images/best-practices/education-section.jpg",
+    "honors": "/images/best-practices/education-section.jpg",
+    
+    // Certification practices
+    "certification": "/images/best-practices/certifications.jpg",
+}
+
+// Function to get image URL for a practice
+function getBestPracticeImage(practice: string): string | null {
+    const lowerPractice = practice.toLowerCase()
+    
+    for (const [keyword, imageUrl] of Object.entries(BEST_PRACTICE_IMAGES)) {
+        if (lowerPractice.includes(keyword.toLowerCase())) {
+            return imageUrl
+        }
+    }
+    
+    return null // Return null if no matching image
+}
+
+// Expandable Best Practice Item Component
+function BestPracticeItem({ practice }: { practice: string; index: number }) {
+    const [isExpanded, setIsExpanded] = React.useState(false)
+    const [imageError, setImageError] = React.useState(false)
+    
+    const imageUrl = getBestPracticeImage(practice)
+    
+    // Generate detailed content based on the practice
+    const getDetailedContent = (practice: string): string => {
+        // Add more context/explanation for each practice
+        const lowerPractice = practice.toLowerCase()
+        
+        if (lowerPractice.includes('headshot') || lowerPractice.includes('photo')) {
+            return "A professional headshot significantly increases your profile's credibility. Studies show profiles with photos receive 21x more views and 9x more connection requests. Ensure good lighting, a neutral background, and professional attire appropriate for your industry."
+        }
+        if (lowerPractice.includes('banner') || lowerPractice.includes('background')) {
+            return "Your banner image is prime real estate for personal branding. Use it to showcase your expertise, company culture, or professional achievements. The recommended size is 1584x396 pixels. Consider including your value proposition or key accomplishments."
+        }
+        if (lowerPractice.includes('headline') || lowerPractice.includes('120') || lowerPractice.includes('220')) {
+            return "Your headline appears in search results, connection requests, and comments. Maximize the 220-character limit by including your role, value proposition, and 2-3 keywords recruiters search for. Top performers use formats like: 'Role | Achievement | Value Proposition'."
+        }
+        if (lowerPractice.includes('keyword')) {
+            return "LinkedIn's algorithm matches profiles to job searches based on keywords. Research job postings in your target role and include those terms naturally in your headline, about section, and experience. Focus on skills, tools, and industry-specific terminology."
+        }
+        if (lowerPractice.includes('hook') || lowerPractice.includes('opening')) {
+            return "The first 3 lines of your About section appear before the 'see more' button. Make them count with a compelling hook that showcases your unique value. Lead with an achievement, a bold statement, or a question that resonates with your target audience."
+        }
+        if (lowerPractice.includes('metric') || lowerPractice.includes('achievement') || lowerPractice.includes('number')) {
+            return "Quantified achievements are 40% more likely to catch a recruiter's attention. Instead of 'improved sales,' say 'increased sales by 150% ($2M ARR).' Include revenue generated, users impacted, efficiency gains, or team sizes managed."
+        }
+        if (lowerPractice.includes('action verb')) {
+            return "Strong action verbs make your experience more dynamic and impactful. Use words like 'Spearheaded,' 'Architected,' 'Transformed,' 'Accelerated,' instead of passive phrases like 'Responsible for' or 'Worked on.'"
+        }
+        if (lowerPractice.includes('skill') && lowerPractice.includes('30')) {
+            return "LinkedIn allows up to 50 skills. Profiles with 30+ skills appear in more searches. Include a mix of hard skills (technical tools, software) and soft skills (leadership, communication). Pin your top 3 most relevant skills."
+        }
+        if (lowerPractice.includes('endorsement')) {
+            return "Skill endorsements add social proof to your profile. Request endorsements from colleagues who can vouch for your abilities. Profiles with 99+ endorsements on top skills appear more credible to recruiters."
+        }
+        if (lowerPractice.includes('custom url') || lowerPractice.includes('linkedin.com/in')) {
+            return "A custom URL (linkedin.com/in/yourname) looks more professional than one with random numbers. It's easier to share on resumes, email signatures, and business cards. Claim yours in Settings > Public Profile."
+        }
+        if (lowerPractice.includes('certification')) {
+            return "Certifications demonstrate commitment to professional development. Prioritize industry-recognized credentials from providers like Google, AWS, Microsoft, or professional associations. Keep them current and include credential IDs."
+        }
+        if (lowerPractice.includes('education') || lowerPractice.includes('gpa') || lowerPractice.includes('honors')) {
+            return "For recent graduates, education carries more weight. Include relevant coursework, honors, Dean's List, and extracurricular leadership roles. As you gain experience, shift focus to professional achievements."
+        }
+        if (lowerPractice.includes('call-to-action') || lowerPractice.includes('contact')) {
+            return "End your About section with a clear call-to-action. Tell visitors what you want them to do: 'Open to new opportunities in [field],' 'Connect with me to discuss [topic],' or include your email for direct contact."
+        }
+        if (lowerPractice.includes('first-person') || lowerPractice.includes('first person')) {
+            return "Writing in first person ('I lead...' vs 'John leads...') creates a more personal, authentic connection with readers. It makes your profile feel like a conversation rather than a formal resume."
+        }
+        if (lowerPractice.includes('star') || lowerPractice.includes('situation')) {
+            return "The STAR format (Situation, Task, Action, Result) helps structure your experience descriptions. Briefly describe the context, what you were tasked with, what actions you took, and the measurable results you achieved."
+        }
+        
+        // Default detailed content
+        return "Following this best practice will help optimize your LinkedIn profile for better visibility and engagement. Recruiters and connections will be more likely to find and engage with your profile when you implement this recommendation."
+    }
+    
+    return (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 transition-colors"
+            >
+                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="w-4 h-4 text-violet-600" />
+                </div>
+                <p className="flex-1 text-sm font-medium text-slate-800">{practice}</p>
+                <ChevronRight className={cn(
+                    "w-5 h-5 text-slate-400 transition-transform duration-200",
+                    isExpanded && "rotate-90"
+                )} />
+            </button>
+            
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-4 pb-4 pt-0 space-y-3">
+                            {/* Image */}
+                            {imageUrl && !imageError && (
+                                <div className="rounded-lg overflow-hidden border border-slate-200">
+                                    <img 
+                                        src={imageUrl}
+                                        alt={`Best practice example for: ${practice}`}
+                                        className="w-full h-40 object-cover"
+                                        onError={() => setImageError(true)}
+                                    />
+                                </div>
+                            )}
+                            
+                            {/* Detailed Content */}
+                            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                                <p className="text-sm text-slate-600 leading-relaxed">
+                                    {getDetailedContent(practice)}
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    )
 }
 
 function convertBackendBannersToSidebarData(banners: BannerSection[]): SidebarItemData[] {
@@ -371,12 +550,12 @@ function useSidebarData(auditData: LinkedInAudit | UnifiedLinkedInAudit | Enhanc
 
 // ==================== Components ====================
 
-function StatusIcon({ status, className }: { status: SidebarItemStatus, className?: string }) {
-    if (status === 'pass') return <CheckCircle2 className={cn("text-green-500", className)} />
-    if (status === 'warning') return <AlertTriangle className={cn("text-[#ea580c]", className)} />
-    if (status === 'critical') return <AlertTriangle className={cn("text-red-500", className)} />
-    return <Lightbulb className={cn("text-yellow-500", className)} />
-}
+// function StatusIcon({ status, className }: { status: SidebarItemStatus, className?: string }) {
+//     if (status === 'pass') return <CheckCircle2 className={cn("text-green-500", className)} />
+//     if (status === 'warning') return <AlertTriangle className={cn("text-[#ea580c]", className)} />
+//     if (status === 'critical') return <AlertTriangle className={cn("text-red-500", className)} />
+//     return <Lightbulb className={cn("text-yellow-500", className)} />
+// }
 
 // Component for rendering experience checklist items with expand/collapse
 function ExperienceChecklistItems({ 
@@ -422,9 +601,7 @@ function ExperienceChecklistItems({
                             <button
                                 onClick={() => setExpandedSubItem(isExpanded ? null : itemIdx)}
                                 className={cn(
-                                    "w-full flex items-start gap-4 p-4 rounded-xl bg-white shadow-sm transition-all text-left group hover:shadow-md",
-                                    isCritical && "border-l-4 border-red-500",
-                                    isWarning && "border-l-4 border-amber-500"
+                                    "w-full flex items-start gap-4 p-4 rounded-xl bg-white shadow-sm transition-all text-left group hover:shadow-md border border-gray-100"
                                 )}
                             >
                                 <div className="flex-1 min-w-0">
@@ -496,17 +673,15 @@ function ExperienceChecklistItems({
                                                                 Suggested fix
                                                             </h6>
                                                         </div>
-                                                        <button
+                                                        <AutoFixButton
+                                                            variant="glass-glow"
+                                                            size="sm"
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
                                                                 const contextMessage = `Help me fix: ${item.criterion} for my ${experience.jobTitle} role at ${experience.company}. ${item.reasoning}`
                                                                 onFix?.(`experience_${expIdx}_item_${itemIdx}`, contextMessage)
                                                             }}
-                                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:shadow"
-                                                        >
-                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                            Auto-fix
-                                                        </button>
+                                                        />
                                                     </div>
                                                     <div className="pl-11">
                                                         <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
@@ -519,17 +694,18 @@ function ExperienceChecklistItems({
                                             {/* Action button when no specific fix is available */}
                                             {(!item.actionableFix || item.actionableFix.trim() === item.reasoning.trim()) && (
                                                 <div className="pt-2">
-                                                    <button
+                                                    <AutoFixButton
+                                                        variant="glass-glow"
+                                                        size="md"
+                                                        label="Get personalized fix with AI"
+                                                        loadingLabel="Generating fix..."
+                                                        className="w-full justify-center"
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             const contextMessage = `Help me fix: ${item.criterion} for my ${experience.jobTitle} role at ${experience.company}. ${item.reasoning}`
                                                             onFix?.(`experience_${expIdx}_item_${itemIdx}`, contextMessage)
                                                         }}
-                                                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-sm font-medium transition-all shadow-sm hover:shadow"
-                                                    >
-                                                        <Sparkles className="w-4 h-4" />
-                                                        Get personalized fix with AI
-                                                    </button>
+                                                    />
                                                 </div>
                                             )}
                                         </div>
@@ -548,7 +724,6 @@ export function OptimizationSidebar({
     auditData,
     totalScore,
     checklist,
-    isDark = false,
     onSelectSection,
     onFix
 }: OptimizationSidebarProps) {
@@ -646,9 +821,9 @@ export function OptimizationSidebar({
                     >
                         <div className="space-y-3">
                             {items.map((item) => {
-                                const scorePercent = item.maxScore && item.maxScore > 0 
-                                    ? (item.score || 0) / item.maxScore * 100 
-                                    : (item.status === 'pass' ? 100 : item.status === 'warning' ? 60 : 30)
+                                // const scorePercent = item.maxScore && item.maxScore > 0 
+                                //     ? (item.score || 0) / item.maxScore * 100 
+                                //     : (item.status === 'pass' ? 100 : item.status === 'warning' ? 60 : 30)
                                 
                                 const displayScore = (item.score !== undefined && item.maxScore !== undefined)
                                     ? `${Math.round(item.score)}/${Math.round(item.maxScore)}`
@@ -875,17 +1050,15 @@ export function OptimizationSidebar({
                                                                         </h4>
                                                                         <div className="flex items-center gap-2 flex-shrink-0">
                                                                             {/* Auto-fix button */}
-                                                                            <button
+                                                                            <AutoFixButton
+                                                                                variant="glass-glow"
+                                                                                size="sm"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation()
                                                                                     const contextMessage = `Auto-fix my ${experience.jobTitle} experience at ${experience.company}. ${experience.summary}`
                                                                                     onFix?.(`experience_${expIdx}_autofix`, contextMessage)
                                                                                 }}
-                                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:shadow"
-                                                                            >
-                                                                                <Sparkles className="w-3 h-3" />
-                                                                                Auto-fix
-                                                                            </button>
+                                                                            />
                                                                             <span className="px-2 py-0.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
                                                                                 {Math.round(expScore)}/{Math.round(expMaxScore)}
                                                                             </span>
@@ -1045,17 +1218,15 @@ export function OptimizationSidebar({
                                                                                 Suggested fix
                                                                             </h6>
                                                                         </div>
-                                                                        <button
+                                                                        <AutoFixButton
+                                                                            variant="glass-glow"
+                                                                            size="sm"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation()
                                                                                 const contextMessage = `Help me fix: ${item.text} in my ${selectedItem?.title} section`
                                                                                 onFix?.(`${selectedItem?.id}_item_${idx}`, contextMessage)
                                                                             }}
-                                                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-xs font-medium transition-all shadow-sm hover:shadow"
-                                                                        >
-                                                                            <Sparkles className="w-3.5 h-3.5" />
-                                                                            Auto-fix
-                                                                        </button>
+                                                                        />
                                                                     </div>
                                                                     <div className="pl-11">
                                                                         <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
@@ -1068,17 +1239,18 @@ export function OptimizationSidebar({
                                                             {/* Action button when no specific fix is available but item failed */}
                                                             {item.status !== 'pass' && !((item as any).actionableFix || item.solution) && (
                                                                 <div className="pt-2">
-                                                                    <button
+                                                                    <AutoFixButton
+                                                                        variant="glass-glow"
+                                                                        size="md"
+                                                                        label="Get personalized fix with AI"
+                                                                        loadingLabel="Generating fix..."
+                                                                        className="w-full justify-center"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
                                                                             const contextMessage = `Help me fix: ${item.text} in my ${selectedItem?.title} section`
                                                                             onFix?.(`${selectedItem?.id}_item_${idx}`, contextMessage)
                                                                         }}
-                                                                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-sm font-medium transition-all shadow-sm hover:shadow"
-                                                                    >
-                                                                        <Sparkles className="w-4 h-4" />
-                                                                        Get personalized fix with AI
-                                                                    </button>
+                                                                    />
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1091,16 +1263,11 @@ export function OptimizationSidebar({
                                     )}
                                     </div>
                                 ) : (
-                                    /* Best Practices Tab - Clean List */
-                                    <div className="space-y-3">
+                                    /* Best Practices Tab - Expandable Banners */
+                                    <div className="space-y-2">
                                         {selectedItem?.bestPractices && selectedItem.bestPractices.length > 0 ? (
                                             selectedItem.bestPractices.map((practice, idx) => (
-                                                <div key={idx} className="flex gap-3 p-3 rounded-lg border border-gray-200 bg-white">
-                                                    <Lightbulb className="w-5 h-5 text-violet-600 flex-shrink-0 mt-0.5" />
-                                                    <p className="text-sm text-slate-700 leading-relaxed">
-                                                        {practice}
-                                                    </p>
-                                                </div>
+                                                <BestPracticeItem key={idx} practice={practice} index={idx} />
                                             ))
                                         ) : (
                                             <div className="p-4 rounded-lg border border-gray-200 bg-slate-50">
