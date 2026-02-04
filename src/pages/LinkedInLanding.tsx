@@ -6,7 +6,6 @@ import { Sparkles, Search, TrendingUp, ArrowRight, ChevronRight, Loader2, Paperc
 import { cn } from "@/lib/utils"
 import resumeService from "@/services/api/resumeService"
 import { useApp } from "@/contexts/AppContext"
-import type { ResumeItemSummary } from "@/services/api/types"
 
 interface SessionCard {
   id: string
@@ -41,52 +40,70 @@ export default function LinkedInLanding() {
     async function loadSessions() {
       try {
         setIsLoadingSessions(true)
-        const resumes = await resumeService.listResumes(10)
+        const resumes = await resumeService.listResumes(20) // Fetch more to filter
 
-        // Map resumes to session cards - fetch full data to get LinkedIn profile name
-        const mappedSessions: SessionCard[] = await Promise.all(
-          resumes
-            .filter((r: ResumeItemSummary) => r.name) // Only show named projects
-            .map(async (r: ResumeItemSummary) => {
-              // Determine type based on name patterns
-              let type: "create" | "review" | "improve" = "review"
-              const nameLower = r.name?.toLowerCase() || ""
-
-              // Check for explicit type indicators in name
-              if (nameLower.includes("create") || nameLower.includes("creation")) {
-                type = "create"
-              } else if (nameLower.includes("improve") || nameLower.includes("improvement") || nameLower.includes("optimization")) {
-                type = "improve"
-              } else if (nameLower.includes("review") || nameLower.includes("audit")) {
-                type = "review"
-              }
-              // If name contains "linkedin" but no specific type, check for resume indicators
-              else if (nameLower.includes("resume") && !nameLower.includes("linkedin")) {
-                type = "create" // Resume upload typically means profile creation
-              }
-
-              // Try to fetch full resume data to get LinkedIn profile name
-              let candidateName = r.name || "Unnamed Project"
-              try {
-                const fullResume = await resumeService.getResume(r.id)
-                if (fullResume?.linkedInAudit?.userProfile?.fullName) {
-                  candidateName = fullResume.linkedInAudit.userProfile.fullName
-                }
-              } catch (error) {
-                console.log(`Could not fetch full data for resume ${r.id}:`, error)
-              }
-
-              return {
+        // Only show LinkedIn profiles that have audit data
+        const linkedInSessions: SessionCard[] = []
+        
+        for (const r of resumes) {
+          try {
+            const fullResume = await resumeService.getResume(r.id)
+            const audit = fullResume?.linkedInAudit
+            
+            // Debug logging
+            console.log(`Resume ${r.id}:`, {
+              name: r.name,
+              hasAudit: !!audit,
+              auditKeys: audit ? Object.keys(audit) : [],
+              status: (fullResume as any)?.status
+            })
+            
+            // Check if audit exists and has meaningful data
+            const hasAuditData = audit && (
+              audit.userProfile || 
+              (audit as any).checklistAudit?.banners ||
+              (audit as any).optimizationReport ||
+              (audit as any).banners // Direct checklist audit format
+            )
+            
+            if (hasAuditData) {
+              // Extract name from various possible locations
+              const candidateName = 
+                audit.userProfile?.fullName ||
+                (audit as any).userProfile?.full_name ||
+                (audit as any).checklistAudit?.userProfile?.fullName ||
+                (fullResume as any).parsedProfile?.basics?.name ||
+                r.name || 
+                "LinkedIn Profile"
+              
+              // Extract score from various possible locations
+              const score = 
+                (audit as any).checklistAudit?.overall_score ||
+                (audit as any).overall_score ||
+                (audit as any).optimizationReport?.totalScore ||
+                undefined
+              
+              console.log(`Found valid LinkedIn session: ${candidateName}, score: ${score}`)
+              
+              linkedInSessions.push({
                 id: r.id,
-                type,
+                type: "review",
                 candidateName,
                 lastEdited: formatTimestamp(r.updatedAt),
+                score: score,
                 status: "complete" as const,
-              }
-            })
-        )
+              })
+              
+              // Stop after finding 3 valid LinkedIn profiles
+              if (linkedInSessions.length >= 3) break
+            }
+          } catch (error) {
+            console.log(`Could not fetch data for resume ${r.id}:`, error)
+          }
+        }
 
-        setSessions(mappedSessions)
+        console.log(`Found ${linkedInSessions.length} LinkedIn sessions with audit data`)
+        setSessions(linkedInSessions)
       } catch (error) {
         console.error("Failed to load sessions:", error)
       } finally {
@@ -192,14 +209,10 @@ export default function LinkedInLanding() {
     }
   }
 
-  const handleSessionClick = (sessionId: string) => {
-    navigate(`/linkedin/workspace/${sessionId}`)
-  }
-
-  const getTypeDisplay = (type: "create" | "review" | "improve"): string => {
-    if (type === "create") return "Profile Creation"
-    if (type === "review") return "Profile Review"
-    return "Profile Improvement"
+  const handleSessionClick = (sessionId: string, sessionType: "create" | "review" | "improve") => {
+    navigate(`/linkedin/workspace/${sessionId}`, {
+      state: { startMode: sessionType }
+    })
   }
 
   return (
@@ -207,37 +220,55 @@ export default function LinkedInLanding() {
       "min-h-screen font-['Inter',sans-serif] transition-colors relative",
       isDark ? "bg-[#0C0C0C]" : "bg-white"
     )}>
-      <div className="max-w-2xl mx-auto pt-24 px-8 pb-12">
+      <div className="max-w-2xl mx-auto pt-12 sm:pt-24 px-4 sm:px-8 pb-12">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <h1 className={cn(
-            "text-4xl font-medium tracking-tight",
+            "text-2xl sm:text-4xl font-medium tracking-tight",
             isDark ? "text-white" : "text-gray-900"
           )}>
             Let's perfect your LinkedIn, {firstName}.
           </h1>
           <p className={cn(
-            "text-base mt-4",
+            "text-sm sm:text-base mt-3 sm:mt-4",
             isDark ? "text-gray-400" : "text-gray-500"
           )}>
             How would you like to begin?
           </p>
         </div>
 
-        {/* Action Cards Grid - Strict 3-Column */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* Action Cards Grid - Responsive: 1 col on mobile, 3 on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {/* Card 1: Create */}
           <button
             onClick={() => handleActionClick("create")}
             className={cn(
-              "relative w-full h-36 rounded-3xl border-[1.5px] transition-all duration-200",
+              "relative w-full rounded-2xl sm:rounded-3xl border-[1.5px] transition-all duration-200",
+              "h-auto min-h-[80px] sm:h-36 p-4 sm:p-0",
+              "flex sm:block items-center gap-3 sm:gap-0",
               selectedMode === "create"
                 ? (isDark ? "bg-[#202325] border-green-500/50 ring-1 ring-green-500/20" : "bg-white border-green-500 ring-1 ring-green-100")
                 : (isDark ? "bg-[#202325] border-[#303437] hover:bg-[#2a2d30]" : "bg-white border-[#E5E7EB] hover:bg-gray-50")
             )}
           >
-            {/* Popular Badge */}
-            <div className="absolute top-5 right-5">
+            {/* Icon - flexbox on mobile, absolute on desktop */}
+            <div className="sm:absolute sm:top-5 sm:left-5 flex-shrink-0">
+              <Sparkles className={cn(
+                "w-6 h-6 transition-colors",
+                selectedMode === "create" ? "text-green-500" : (isDark ? "text-gray-400" : "text-gray-500")
+              )} strokeWidth={1.5} />
+            </div>
+
+            {/* Text - inline on mobile, absolute on desktop */}
+            <h3 className={cn(
+              "sm:absolute sm:bottom-5 sm:left-5 sm:right-5 text-sm sm:text-base font-medium sm:text-center text-left flex-1",
+              isDark ? "text-white" : "text-gray-900"
+            )}>
+              Create profile using resume
+            </h3>
+
+            {/* Popular Badge - right side on mobile, top-right on desktop */}
+            <div className="sm:absolute sm:top-5 sm:right-5 flex-shrink-0">
               <span className={cn(
                 "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md",
                 isDark ? "text-green-400 bg-green-900/30" : "text-green-600 bg-green-50"
@@ -245,37 +276,29 @@ export default function LinkedInLanding() {
                 Popular
               </span>
             </div>
-
-            <Sparkles className={cn(
-              "absolute top-5 left-5 w-6 h-6 transition-colors",
-              selectedMode === "create" ? "text-green-500" : (isDark ? "text-gray-400" : "text-gray-500")
-            )} strokeWidth={1.5} />
-
-            <h3 className={cn(
-              "absolute bottom-5 left-5 right-5 text-base font-medium text-center",
-              isDark ? "text-white" : "text-gray-900"
-            )}>
-              Create profile using resume
-            </h3>
           </button>
 
           {/* Card 2: Review */}
           <button
             onClick={() => handleActionClick("review")}
             className={cn(
-              "relative w-full h-36 rounded-3xl border-[1.5px] transition-all duration-200",
+              "relative w-full rounded-2xl sm:rounded-3xl border-[1.5px] transition-all duration-200",
+              "h-auto min-h-[80px] sm:h-36 p-4 sm:p-0",
+              "flex sm:block items-center gap-3 sm:gap-0",
               selectedMode === "review"
                 ? (isDark ? "bg-[#202325] border-blue-500/50 ring-1 ring-blue-500/20" : "bg-white border-blue-500 ring-1 ring-blue-100")
                 : (isDark ? "bg-[#202325] border-[#303437] hover:bg-[#2a2d30]" : "bg-white border-[#E5E7EB] hover:bg-gray-50")
             )}
           >
-            <Search className={cn(
-              "absolute top-5 left-5 w-6 h-6 transition-colors",
-              selectedMode === "review" ? "text-blue-500" : (isDark ? "text-gray-400" : "text-gray-500")
-            )} strokeWidth={1.5} />
+            <div className="sm:absolute sm:top-5 sm:left-5 flex-shrink-0">
+              <Search className={cn(
+                "w-6 h-6 transition-colors",
+                selectedMode === "review" ? "text-blue-500" : (isDark ? "text-gray-400" : "text-gray-500")
+              )} strokeWidth={1.5} />
+            </div>
 
             <h3 className={cn(
-              "absolute bottom-5 left-5 right-5 text-base font-medium text-center",
+              "sm:absolute sm:bottom-5 sm:left-5 sm:right-5 text-sm sm:text-base font-medium sm:text-center text-left flex-1",
               isDark ? "text-white" : "text-gray-900"
             )}>
               Review your profile
@@ -286,19 +309,23 @@ export default function LinkedInLanding() {
           <button
             onClick={() => handleActionClick("improve")}
             className={cn(
-              "relative w-full h-36 rounded-3xl border-[1.5px] transition-all duration-200",
+              "relative w-full rounded-2xl sm:rounded-3xl border-[1.5px] transition-all duration-200",
+              "h-auto min-h-[80px] sm:h-36 p-4 sm:p-0",
+              "flex sm:block items-center gap-3 sm:gap-0",
               selectedMode === "improve"
-                ? (isDark ? "bg-[#202325] border-purple-500/50 ring-1 ring-purple-500/20" : "bg-white border-purple-500 ring-1 ring-purple-100")
+                ? (isDark ? "bg-[#202325] border-[#815FAA]/50 ring-1 ring-[#815FAA]/20" : "bg-white border-[#815FAA] ring-1 ring-[#DFC4FF]/30")
                 : (isDark ? "bg-[#202325] border-[#303437] hover:bg-[#2a2d30]" : "bg-white border-[#E5E7EB] hover:bg-gray-50")
             )}
           >
-            <TrendingUp className={cn(
-              "absolute top-5 left-5 w-6 h-6 transition-colors",
-              selectedMode === "improve" ? "text-purple-500" : (isDark ? "text-gray-400" : "text-gray-500")
-            )} strokeWidth={1.5} />
+            <div className="sm:absolute sm:top-5 sm:left-5 flex-shrink-0">
+              <TrendingUp className={cn(
+                "w-6 h-6 transition-colors",
+                selectedMode === "improve" ? "text-[#815FAA]" : (isDark ? "text-gray-400" : "text-gray-500")
+              )} strokeWidth={1.5} />
+            </div>
 
             <h3 className={cn(
-              "absolute bottom-5 left-5 right-5 text-base font-medium text-center",
+              "sm:absolute sm:bottom-5 sm:left-5 sm:right-5 text-sm sm:text-base font-medium sm:text-center text-left flex-1",
               isDark ? "text-white" : "text-gray-900"
             )}>
               Improve your profile
@@ -393,78 +420,76 @@ export default function LinkedInLanding() {
               isDark ? "text-gray-400" : "text-gray-500"
             )}>Continue Your Journey</h2>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               {sessions.slice(0, 3).map((session) => (
                 <button
                   key={session.id}
-                  onClick={() => handleSessionClick(session.id)}
+                  onClick={() => handleSessionClick(session.id, session.type)}
                   className={cn(
-                    "h-36 p-4 rounded-2xl flex flex-col justify-between text-left border transition-colors",
+                    "relative rounded-2xl border transition-colors text-left",
+                    // Mobile: horizontal card layout
+                    "flex sm:flex-col items-center sm:items-stretch gap-3 sm:gap-0",
+                    "p-3 sm:p-4 h-auto sm:h-36",
                     isDark
-                      ? "bg-[#202325] border-[#303437] hover:border-purple-500/50"
-                      : "bg-white border-gray-100 hover:border-purple-200"
+                      ? "bg-[#202325] border-[#303437] hover:border-[#815FAA]/50"
+                      : "bg-white border-gray-100 hover:border-[#BC9CE2]"
                   )}
                 >
-                  {/* Top Section */}
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div className={cn(
-                        "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
-                        isDark
-                          ? (session.type === "create" ? "bg-green-900/20" : session.type === "improve" ? "bg-purple-900/20" : "bg-blue-900/20")
-                          : (session.type === "create" ? "bg-green-50" : session.type === "improve" ? "bg-purple-50" : "bg-blue-50")
-                      )}>
-                        {session.type === "create" ? (
-                          <Sparkles className={cn("w-4 h-4", isDark ? "text-green-400" : "text-green-600")} />
-                        ) : session.type === "improve" ? (
-                          <TrendingUp className={cn("w-4 h-4", isDark ? "text-purple-400" : "text-purple-600")} />
-                        ) : (
-                          <Search className={cn("w-4 h-4", isDark ? "text-blue-400" : "text-blue-600")} />
-                        )}
-                      </div>
+                  {/* Icon - left on mobile, top-left on desktop */}
+                  <div className={cn(
+                    "w-10 h-10 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                    isDark ? "bg-[#815FAA]/20" : "bg-[#815FAA]/10"
+                  )}>
+                    <Search className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
+                  </div>
 
-                      {/* Status Badge */}
-                      {session.type === "review" && session.score && (
-                        <span className={cn(
-                          "px-2 py-0.5 text-[10px] font-medium rounded",
-                          isDark ? "text-yellow-400 bg-yellow-900/30" : "text-yellow-700 bg-yellow-50"
-                        )}>
-                          Score: {session.score}
-                        </span>
-                      )}
-                      {session.type === "improve" && session.status === "in-progress" && (
-                        <span className={cn(
-                          "px-2 py-0.5 text-[10px] font-medium rounded",
-                          isDark ? "text-blue-400 bg-blue-900/30" : "text-blue-700 bg-blue-50"
-                        )}>
-                          In Progress
-                        </span>
-                      )}
+                  {/* Content - middle on mobile, fills card on desktop */}
+                  <div className="flex-1 sm:flex sm:flex-col sm:justify-between sm:mt-2 min-w-0">
+                    <div className="space-y-0.5 sm:space-y-2">
+                      <h3 className={cn(
+                        "font-semibold text-sm line-clamp-1",
+                        isDark ? "text-white" : "text-gray-900"
+                      )}>
+                        {session.candidateName}
+                      </h3>
+
+                      <p className={cn(
+                        "text-[11px] line-clamp-1",
+                        isDark ? "text-gray-500" : "text-gray-500"
+                      )}>
+                        Profile Review • {session.lastEdited}
+                      </p>
                     </div>
 
-                    <h3 className={cn(
-                      "font-semibold text-sm line-clamp-1",
-                      isDark ? "text-white" : "text-gray-900"
+                    {/* Continue link - hidden on mobile, shown on desktop */}
+                    <div className={cn(
+                      "hidden sm:flex items-center gap-1 text-xs font-medium mt-auto",
+                      isDark ? "text-[#BC9CE2]" : "text-[#815FAA]"
                     )}>
-                      {getTypeDisplay(session.type)}
-                    </h3>
-
-                    <p className={cn(
-                      "text-[11px] line-clamp-2",
-                      isDark ? "text-gray-500" : "text-gray-500"
-                    )}>
-                      {session.candidateName} • {session.lastEdited}
-                    </p>
+                      <span>Continue</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </div>
                   </div>
 
-                  {/* Bottom Action */}
-                  <div className={cn(
-                    "flex items-center gap-1 text-xs font-medium",
-                    isDark ? "text-purple-400" : "text-purple-600"
-                  )}>
-                    <span>Resume</span>
-                    <ChevronRight className="w-3 h-3" />
-                  </div>
+                  {/* Score Badge - right side on mobile, stays visible */}
+                  {session.score !== undefined && (
+                    <span className={cn(
+                      "px-2 py-0.5 text-[10px] font-bold rounded flex-shrink-0 self-center sm:absolute sm:top-4 sm:right-4",
+                      session.score >= 80 
+                        ? (isDark ? "text-emerald-400 bg-emerald-900/30" : "text-emerald-700 bg-emerald-50")
+                        : session.score >= 50 
+                          ? (isDark ? "text-amber-400 bg-amber-900/30" : "text-amber-700 bg-amber-50")
+                          : (isDark ? "text-red-400 bg-red-900/30" : "text-red-700 bg-red-50")
+                    )}>
+                      {session.score}/100
+                    </span>
+                  )}
+
+                  {/* Chevron - shown on mobile only */}
+                  <ChevronRight className={cn(
+                    "w-4 h-4 flex-shrink-0 sm:hidden",
+                    isDark ? "text-gray-500" : "text-gray-400"
+                  )} />
                 </button>
               ))}
             </div>

@@ -776,20 +776,19 @@ export function OptimizationSidebar({
                     <div className="relative w-20 h-20 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                             <path
-                                className="text-gray-100"
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none"
-                                stroke="currentColor"
+                                stroke="#E5E7EB"
                                 strokeWidth="2"
                             />
                             <path
-                                className="text-violet-600"
                                 strokeDasharray={`${totalScore}, 100`}
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
+                                stroke="#815FAA"
+                                strokeWidth="2.5"
                                 strokeLinecap="round"
+                                style={{ filter: 'drop-shadow(0 0 3px rgba(129, 95, 170, 0.3))' }}
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -800,7 +799,7 @@ export function OptimizationSidebar({
 
                 {/* Profile Summary */}
                 {view === 'list' && auditData && 'checklistAudit' in auditData && auditData.checklistAudit?.summary && (
-                    <div className="mt-4 bg-violet-50 rounded-lg p-4">
+                    <div className="mt-4 rounded-xl p-4" style={{ background: 'rgba(129, 95, 170, 0.08)' }}>
                         <p className="text-sm leading-relaxed text-gray-700">
                             {auditData.checklistAudit.summary}
                         </p>
@@ -821,9 +820,16 @@ export function OptimizationSidebar({
                     >
                         <div className="space-y-3">
                             {items.map((item) => {
-                                // const scorePercent = item.maxScore && item.maxScore > 0 
-                                //     ? (item.score || 0) / item.maxScore * 100 
-                                //     : (item.status === 'pass' ? 100 : item.status === 'warning' ? 60 : 30)
+                                // Calculate status based on score percentage (more accurate than relying on backend status)
+                                const scorePercent = item.maxScore && item.maxScore > 0 
+                                    ? (item.score || 0) / item.maxScore * 100 
+                                    : null
+                                
+                                // Determine display status based on score percentage
+                                // >= 80% = pass (green), 50-79% = warning (amber), < 50% = critical (red)
+                                const computedStatus: SidebarItemStatus = scorePercent !== null
+                                    ? (scorePercent >= 80 ? 'pass' : scorePercent >= 50 ? 'warning' : 'critical')
+                                    : item.status // Fallback to backend status if no score
                                 
                                 const displayScore = (item.score !== undefined && item.maxScore !== undefined)
                                     ? `${Math.round(item.score)}/${Math.round(item.maxScore)}`
@@ -849,11 +855,11 @@ export function OptimizationSidebar({
                                                     {displayScore}
                                                 </span>
                                             )}
-                                            {item.status === 'pass' ? (
+                                            {computedStatus === 'pass' ? (
                                                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                            ) : item.status === 'warning' ? (
+                                            ) : computedStatus === 'warning' ? (
                                                 <AlertTriangle className="w-5 h-5 text-amber-500" />
-                                            ) : item.status === 'critical' ? (
+                                            ) : computedStatus === 'critical' ? (
                                                 <AlertTriangle className="w-5 h-5 text-red-500" />
                                             ) : (
                                                 <Lightbulb className="w-5 h-5 text-gray-400" />
@@ -907,7 +913,7 @@ export function OptimizationSidebar({
                                             className={cn(
                                                 "flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap",
                                                 isSelected 
-                                                    ? "bg-purple-50 text-purple-600" 
+                                                    ? "bg-[#815FAA]/10 text-[#815FAA]" 
                                                     : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                                             )}
                                         >
@@ -916,7 +922,7 @@ export function OptimizationSidebar({
                                             {displayScore && (
                                                 <span className={cn(
                                                     "text-xs px-1.5 py-0.5 rounded",
-                                                    isSelected ? "bg-purple-100" : "bg-gray-100"
+                                                    isSelected ? "bg-[#815FAA]/20" : "bg-gray-100"
                                                 )}>
                                                     {displayScore}
                                                 </span>
@@ -1032,8 +1038,8 @@ export function OptimizationSidebar({
                                                             className={cn(
                                                                 "w-full p-4 rounded-xl border transition-all text-left group shadow-sm",
                                                                 expandedChecklistItem === expIdx 
-                                                                    ? "border-violet-200 bg-violet-50 shadow-md" 
-                                                                    : "border-gray-200 hover:border-gray-300 hover:bg-slate-50 hover:shadow-md"
+                                                                    ? "border-[#BC9CE2] bg-[#815FAA]/5 shadow-md" 
+                                                                    : "border-gray-200 hover:border-[#DFC4FF] hover:bg-slate-50 hover:shadow-md"
                                                             )}
                                                         >
                                                             <div className="flex items-start gap-3">
@@ -1125,9 +1131,13 @@ export function OptimizationSidebar({
                                                                             const contextMessage = `I need help improving my ${experience.jobTitle} experience at ${experience.company}. ${experience.summary}`
                                                                             onFix?.(`experience_${expIdx}`, contextMessage)
                                                                         }}
-                                                                        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors"
+                                                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all shadow-md hover:shadow-lg"
+                                                                        style={{ 
+                                                                            background: 'linear-gradient(135deg, #815FAA 0%, #9D7FC1 100%)',
+                                                                            boxShadow: '0 4px 12px rgba(129, 95, 170, 0.25)'
+                                                                        }}
                                                                     >
-                                                                        <Sparkles className="w-4 h-4" />
+                                                                        <Sparkles className="w-4 h-4 text-[#DFC4FF]" />
                                                                         Improve with Copilot
                                                                     </button>
                                                                 </motion.div>
@@ -1149,8 +1159,8 @@ export function OptimizationSidebar({
                                                 className={cn(
                                                     "w-full flex items-start gap-3 p-4 rounded-xl border transition-all text-left group shadow-sm",
                                                     expandedChecklistItem === idx 
-                                                        ? "border-violet-200 bg-violet-50 shadow-md" 
-                                                        : "border-gray-200 hover:border-gray-300 hover:bg-slate-50 hover:shadow-md"
+                                                        ? "border-[#BC9CE2] bg-[#815FAA]/5 shadow-md" 
+                                                        : "border-gray-200 hover:border-[#DFC4FF] hover:bg-slate-50 hover:shadow-md"
                                                 )}
                                             >
                                                 {item.status === 'pass' ? (
@@ -1211,8 +1221,8 @@ export function OptimizationSidebar({
                                                                 <div>
                                                                     <div className="flex items-center justify-between mb-3">
                                                                         <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
-                                                                                <Lightbulb className="w-4 h-4 text-purple-600" />
+                                                                            <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(129, 95, 170, 0.1)' }}>
+                                                                                <Lightbulb className="w-4 h-4 text-[#815FAA]" />
                                                                             </div>
                                                                             <h6 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                                                                                 Suggested fix
@@ -1293,9 +1303,13 @@ export function OptimizationSidebar({
                                             
                                             onFix?.(selectedItem?.id || "", contextMessage)
                                         }}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-white transition-all bg-violet-600 hover:bg-violet-700 active:scale-[0.98] shadow-md hover:shadow-lg mt-6"
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-white transition-all active:scale-[0.98] mt-6"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #815FAA 0%, #9D7FC1 100%)',
+                                            boxShadow: '0 4px 14px rgba(129, 95, 170, 0.35)'
+                                        }}
                                     >
-                                        <Sparkles className="w-4 h-4" />
+                                        <Sparkles className="w-4 h-4 text-[#DFC4FF]" />
                                         Improve with Copilot
                                     </button>
                                 )}

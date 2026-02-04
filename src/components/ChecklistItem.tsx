@@ -97,12 +97,12 @@ export function ChecklistItem({
               <div className="text-sm text-gray-600 leading-relaxed">
                 <p className="mb-3">{item.reasoning}</p>
                 {/* Pro-tip callout */}
-                <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                <div className="rounded-lg p-3" style={{ background: 'rgba(129, 95, 170, 0.08)', border: '1px solid rgba(129, 95, 170, 0.15)' }}>
                   <div className="flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <Sparkles className="w-4 h-4 text-[#815FAA] mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-semibold text-purple-900 mb-1">Pro Tip</p>
-                      <p className="text-xs text-purple-700">{item.bestPractice}</p>
+                      <p className="text-xs font-semibold text-[#684C8A] mb-1">Pro Tip</p>
+                      <p className="text-xs text-[#815FAA]">{item.bestPractice}</p>
                     </div>
                   </div>
                 </div>
@@ -141,7 +141,7 @@ export function ChecklistItem({
                       Suggested Fix:
                     </label>
                     <textarea
-                      className="w-full border border-gray-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                      className="w-full border border-gray-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-[#815FAA] focus:border-transparent resize-none"
                       rows={4}
                       defaultValue={item.fixSuggestion}
                       placeholder="Edit your content here..."

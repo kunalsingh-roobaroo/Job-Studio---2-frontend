@@ -2,7 +2,9 @@ import * as React from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { useAuthActions } from "@/auth/hooks"
+import { useAuthActions, useAuthUser } from "@/auth/hooks"
+import { signInWithGoogle } from "@/auth/cognito"
+import { checkOnboardingStatus } from "@/services/api/userService"
 import Favicon from "@/assets/Favicon.png"
 import { Eye, EyeOff, TrendingUp, Users, Trophy } from "lucide-react"
 
@@ -194,6 +196,7 @@ function HeroCard3D({ mouseX, mouseY, cardMouseX, cardMouseY }: { mouseX: any; m
 function SignUp() {
   const navigate = useNavigate()
   const { signUp, isProcessing, error } = useAuthActions()
+  const { isAuthenticated, isInitializing } = useAuthUser()
   
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -201,6 +204,34 @@ function SignUp() {
   const [passwordTouched, setPasswordTouched] = React.useState(false)
   const [localError, setLocalError] = React.useState<string | null>(null)
   const [isButtonPressed, setIsButtonPressed] = React.useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = React.useState(false)
+  
+  // Redirect after authentication - check onboarding status for OAuth users
+  React.useEffect(() => {
+    if (!isInitializing && isAuthenticated && !isCheckingOnboarding) {
+      setIsCheckingOnboarding(true)
+      
+      // Check if user has completed onboarding
+      checkOnboardingStatus()
+        .then(({ completed }) => {
+          if (!completed) {
+            // New user (likely OAuth) - redirect to onboarding
+            console.log('[SignUp] User needs onboarding, redirecting to personal-details')
+            navigate('/personal-details', { replace: true })
+          } else {
+            // Returning user with completed onboarding
+            console.log('[SignUp] Onboarding complete, redirecting to home')
+            navigate('/', { replace: true })
+          }
+        })
+        .catch((err) => {
+          // On error, assume onboarding needed (safer for new OAuth users)
+          console.error('[SignUp] Error checking onboarding:', err)
+          navigate('/personal-details', { replace: true })
+        })
+    }
+  }, [isAuthenticated, isInitializing, navigate, isCheckingOnboarding])
   
   // Mouse tracking for 3D tilt
   const mouseX = useMotionValue(0.5)
@@ -247,8 +278,17 @@ function SignUp() {
     }
   }
   
-  const handleGoogleSignIn = () => {
-    // Google Sign Up - Not implemented
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleLoading(true)
+      setLocalError(null)
+      await signInWithGoogle()
+      // Note: This won't return - the browser will redirect to Google
+    } catch (err: any) {
+      console.error('Google sign-in error:', err)
+      setLocalError('Failed to initiate Google sign-in. Please try again.')
+      setIsGoogleLoading(false)
+    }
   }
 
   return (
@@ -304,10 +344,11 @@ function SignUp() {
           <button 
             type="button" 
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 font-medium text-sm shadow-sm hover:bg-gray-50 hover:shadow-md transition-all"
+            disabled={isGoogleLoading || isProcessing}
+            className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 font-medium text-sm shadow-sm hover:bg-gray-50 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <GoogleIcon className="h-5 w-5" />
-            Sign up with Google
+            {isGoogleLoading ? "Redirecting to Google..." : "Sign up with Google"}
           </button>
           
           {/* Divider */}

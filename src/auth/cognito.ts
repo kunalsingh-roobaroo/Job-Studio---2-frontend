@@ -7,6 +7,7 @@ import {
   getCurrentUser as amplifyGetCurrentUser,
   confirmSignUp as amplifyConfirmSignUp,
   fetchUserAttributes as amplifyFetchUserAttributes,
+  signInWithRedirect,
 } from 'aws-amplify/auth'
 
 import type {
@@ -45,10 +46,14 @@ function mapAmplifyUser(
   const email: string | undefined =
     signInDetails?.loginId ?? attributes?.email ?? undefined
 
+  // Extract name from attributes (populated by Google IdP mapping)
+  const name: string | undefined = attributes?.name ?? undefined
+
   return {
     id: userId ?? username,
     username,
     email,
+    name,
     attributes,
   }
 }
@@ -143,6 +148,36 @@ export async function getCurrentAuthenticatedUser(): Promise<AuthUser | null> {
     }
 
     throw error
+  }
+}
+
+/**
+ * Initiate Google OAuth sign-in.
+ * Uses manual redirect to Cognito Hosted UI since signInWithRedirect 
+ * can have issues with some configurations.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  console.log('[signInWithGoogle] Starting Google OAuth flow...')
+  
+  try {
+    // First try Amplify's signInWithRedirect
+    console.log('[signInWithGoogle] Attempting signInWithRedirect...')
+    await signInWithRedirect({
+      provider: 'Google',
+    })
+    console.log('[signInWithGoogle] signInWithRedirect called successfully')
+  } catch (error: any) {
+    console.error('[signInWithGoogle] signInWithRedirect failed:', error)
+    
+    // Fallback to manual redirect
+    console.log('[signInWithGoogle] Falling back to manual redirect...')
+    const cognitoDomain = "jobstudio-v2-auth.auth.ap-south-1.amazoncognito.com"
+    const clientId = "jai52r9vvolatgutf2qvbq17i"
+    const redirectUri = encodeURIComponent(window.location.origin)
+    const hostedUIUrl = `https://${cognitoDomain}/oauth2/authorize?identity_provider=Google&redirect_uri=${redirectUri}&response_type=CODE&client_id=${clientId}&scope=openid+email+profile`
+    
+    console.log('[signInWithGoogle] Redirecting to:', hostedUIUrl)
+    window.location.href = hostedUIUrl
   }
 }
 

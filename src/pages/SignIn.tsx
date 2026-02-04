@@ -2,7 +2,9 @@ import * as React from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { motion, useMotionValue, useTransform, useSpring, useMotionTemplate } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { useAuthActions } from "@/auth/hooks"
+import { useAuthActions, useAuthUser } from "@/auth/hooks"
+import { signInWithGoogle } from "@/auth/cognito"
+import { checkOnboardingStatus } from "@/services/api/userService"
 import Favicon from "@/assets/Favicon.png"
 import { Eye, EyeOff, TrendingUp, Users, Trophy } from "lucide-react"
 
@@ -194,6 +196,7 @@ function SignIn() {
   const navigate = useNavigate()
   const location = useLocation() as { state?: { from?: string } }
   const { signIn, isProcessing, error } = useAuthActions()
+  const { isAuthenticated, isInitializing } = useAuthUser()
   
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -204,6 +207,36 @@ function SignIn() {
   const [passwordTouched, setPasswordTouched] = React.useState(false)
   const [localError, setLocalError] = React.useState<string | null>(null)
   const [isButtonPressed, setIsButtonPressed] = React.useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
+  
+  const from = location.state?.from || "/"
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = React.useState(false)
+  
+  // Redirect after authentication - check onboarding status for OAuth users
+  React.useEffect(() => {
+    if (!isInitializing && isAuthenticated && !isCheckingOnboarding) {
+      setIsCheckingOnboarding(true)
+      
+      // Check if user has completed onboarding
+      checkOnboardingStatus()
+        .then(({ completed }) => {
+          if (!completed) {
+            // New user (likely OAuth) - redirect to onboarding
+            console.log('[SignIn] User needs onboarding, redirecting to personal-details')
+            navigate('/personal-details', { replace: true })
+          } else {
+            // Existing user with completed onboarding
+            console.log('[SignIn] Onboarding complete, redirecting to:', from)
+            navigate(from, { replace: true })
+          }
+        })
+        .catch((err) => {
+          // On error, assume onboarding needed (safer for new OAuth users)
+          console.error('[SignIn] Error checking onboarding:', err)
+          navigate('/personal-details', { replace: true })
+        })
+    }
+  }, [isAuthenticated, isInitializing, navigate, from, isCheckingOnboarding])
   
   // Mouse tracking for 3D tilt
   const mouseX = useMotionValue(0.5)
@@ -230,7 +263,6 @@ function SignIn() {
     }
   }
   
-  const from = location.state?.from || "/"
   const showPasswordWarning = passwordTouched && password.length > 0 && password.length < 6
   const displayError = localError || (error ? getErrorMessage(error) : null)
   
@@ -257,8 +289,19 @@ function SignIn() {
     }
   }
   
-  const handleGoogleSignIn = () => {
-    // Google Sign In - Not implemented
+  const handleGoogleSignIn = async () => {
+    console.log('[SignIn] Google button clicked')
+    try {
+      setIsGoogleLoading(true)
+      setLocalError(null)
+      console.log('[SignIn] Calling signInWithGoogle...')
+      await signInWithGoogle()
+      console.log('[SignIn] signInWithGoogle returned (should not see this if redirect happened)')
+    } catch (err: any) {
+      console.error('[SignIn] Google sign-in error:', err)
+      setLocalError('Failed to initiate Google sign-in. Please try again.')
+      setIsGoogleLoading(false)
+    }
   }
 
   return (
@@ -314,10 +357,11 @@ function SignIn() {
           <button 
             type="button" 
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 font-medium text-sm shadow-sm hover:bg-gray-50 hover:shadow-md transition-all"
+            disabled={isGoogleLoading || isProcessing}
+            className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 font-medium text-sm shadow-sm hover:bg-gray-50 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <GoogleIcon className="h-5 w-5" />
-            Sign in with Google
+            {isGoogleLoading ? "Redirecting to Google..." : "Sign in with Google"}
           </button>
           
           {/* Divider */}

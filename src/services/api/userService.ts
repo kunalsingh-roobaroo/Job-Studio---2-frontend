@@ -47,3 +47,30 @@ export async function saveUserPreferences(data: UserPreferencesData): Promise<Us
   const response = await apiClient.post<UserProfileResponse>('/preferences', data);
   return response.data;
 }
+
+/**
+ * Get user profile to check onboarding status
+ */
+export async function getUserProfile(): Promise<UserProfileResponse | null> {
+  try {
+    const response = await apiClient.get<UserProfileResponse>('/profile');
+    return response.data;
+  } catch (error: any) {
+    // 404 means user profile doesn't exist yet (new user)
+    if (error?.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if user has completed onboarding
+ */
+export async function checkOnboardingStatus(): Promise<{ completed: boolean; profile: UserProfileResponse | null }> {
+  const profile = await getUserProfile();
+  return {
+    completed: profile?.onboardingCompleted ?? false,
+    profile
+  };
+}

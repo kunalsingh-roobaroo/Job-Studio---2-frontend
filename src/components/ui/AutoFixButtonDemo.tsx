@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { AutoFixButton, AutoFixButtonVariant, AutoFixButtonSize } from './AutoFixButton'
+import { AutoFixButton } from './AutoFixButton'
+import type { AutoFixButtonVariant, AutoFixButtonSize } from './AutoFixButton'
 
 /**
  * Demo component to preview all Auto-fix button variants

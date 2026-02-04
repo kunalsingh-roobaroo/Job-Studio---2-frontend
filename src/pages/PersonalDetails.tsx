@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { CenteredAuthLayout } from "@/components/auth/AuthLayout"
 import { useTheme } from "@/contexts/ThemeContext"
+import { useAuthUser } from "@/auth/hooks"
 import { saveUserProfile } from "@/services/api/userService"
 import { ChevronDown } from "lucide-react"
 
@@ -139,13 +140,15 @@ function PersonalDetails() {
   const navigate = useNavigate()
   const location = useLocation()
   const { actualTheme } = useTheme()
+  const { user } = useAuthUser()
   const themeMode: ThemeMode = actualTheme === "dark" ? "dark" : "light"
   const isDark = themeMode === "dark"
   
-  // Get email from navigation state (passed from OTP verification)
-  const email = location.state?.email || ""
+  // Get email from navigation state OR from authenticated user (OAuth)
+  const email = location.state?.email || user?.email || ""
   
-  const [fullName, setFullName] = React.useState("")
+  // Pre-fill name from Google OAuth if available
+  const [fullName, setFullName] = React.useState(user?.name || user?.attributes?.name || "")
   const [countryCode, setCountryCode] = React.useState("+91")
   const [phone, setPhone] = React.useState("")
   const [phoneTouched, setPhoneTouched] = React.useState(false)
@@ -153,6 +156,14 @@ function PersonalDetails() {
   const [source, setSource] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  
+  // Update fullName when user data becomes available (OAuth users)
+  React.useEffect(() => {
+    const userName = user?.name || user?.attributes?.name
+    if (userName && !fullName) {
+      setFullName(userName)
+    }
+  }, [user, fullName])
   
   const isPhoneValid = phone.length === 10
   const showPhoneWarning = phoneTouched && phone.length > 0 && !isPhoneValid
