@@ -48,8 +48,8 @@ export function LanguageSelector({ open, onOpenChange, isDark = false }: Languag
                                     "flex items-center justify-between w-full p-4 rounded-lg border transition-all",
                                     currentLanguage.code === lang.code
                                         ? isDark
-                                            ? "bg-purple-900/20 border-purple-500/50"
-                                            : "bg-purple-50 border-purple-200"
+                                            ? "bg-[#815FAA]/20 border-[#815FAA]/50"
+                                            : "bg-[#DFC4FF]/30 border-[#BC9CE2]"
                                         : isDark
                                             ? "bg-[#202325] border-[#303437] hover:bg-[#2A2D30]"
                                             : "bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200"
@@ -64,7 +64,7 @@ export function LanguageSelector({ open, onOpenChange, isDark = false }: Languag
                                     </span>
                                 </div>
                                 {currentLanguage.code === lang.code && (
-                                    <div className="bg-purple-600 rounded-full p-1">
+                                    <div className="bg-[#815FAA] rounded-full p-1">
                                         <Check className="w-3 h-3 text-white" strokeWidth={3} />
                                     </div>
                                 )}

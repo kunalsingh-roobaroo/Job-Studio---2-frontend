@@ -116,7 +116,7 @@ export function ParameterCard({
 
                             {!isPassed && (
                                 <AutoFixButton
-                                    variant="glass-glow"
+                                    variant="primary"
                                     size="md"
                                     label="Fix with Copilot"
                                     loadingLabel="Fixing..."

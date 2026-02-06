@@ -6,6 +6,7 @@ import { Sparkles, Search, TrendingUp, ArrowRight, ChevronRight, Loader2, Paperc
 import { cn } from "@/lib/utils"
 import resumeService from "@/services/api/resumeService"
 import { useApp } from "@/contexts/AppContext"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface SessionCard {
   id: string
@@ -31,78 +32,97 @@ export default function LinkedInLanding() {
   const [loadingMessage, setLoadingMessage] = React.useState("")
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const { setLinkedInAudit, setParsedProfile } = useApp()
+  
+  // Ref to prevent duplicate API calls (React StrictMode runs effects twice)
+  const sessionsLoadedRef = React.useRef(false)
 
   // Extract first name from user
   const firstName = user?.attributes?.name?.split(" ")[0] || user?.username || "there"
 
-  // Fetch recent sessions
+  // Fetch recent sessions - with guard against duplicate calls
   React.useEffect(() => {
+    // Guard against duplicate calls from StrictMode or re-renders
+    if (sessionsLoadedRef.current) {
+      return
+    }
+    sessionsLoadedRef.current = true
+    
     async function loadSessions() {
       try {
         setIsLoadingSessions(true)
-        const resumes = await resumeService.listResumes(20) // Fetch more to filter
+        const resumes = await resumeService.listResumes(10)
 
-        // Only show LinkedIn profiles that have audit data
         const linkedInSessions: SessionCard[] = []
         
+        // First pass: check for LinkedIn-related items using name from summary
         for (const r of resumes) {
-          try {
-            const fullResume = await resumeService.getResume(r.id)
-            const audit = fullResume?.linkedInAudit
-            
-            // Debug logging
-            console.log(`Resume ${r.id}:`, {
-              name: r.name,
-              hasAudit: !!audit,
-              auditKeys: audit ? Object.keys(audit) : [],
-              status: (fullResume as any)?.status
+          // Skip items without a name (likely not LinkedIn analyses)
+          if (!r.name) continue
+          
+          // Check if this looks like a LinkedIn analysis (has a person's name, not a file name)
+          const isLinkedInAnalysis = r.name && !r.name.includes('.pdf') && !r.name.includes('.docx')
+          
+          if (isLinkedInAnalysis) {
+            linkedInSessions.push({
+              id: r.id,
+              type: "review",
+              candidateName: r.name,
+              lastEdited: formatTimestamp(r.updatedAt),
+              score: undefined, // Score will be loaded when they click
+              status: "complete" as const,
             })
             
-            // Check if audit exists and has meaningful data
-            const hasAuditData = audit && (
-              audit.userProfile || 
-              (audit as any).checklistAudit?.banners ||
-              (audit as any).optimizationReport ||
-              (audit as any).banners // Direct checklist audit format
-            )
-            
-            if (hasAuditData) {
-              // Extract name from various possible locations
-              const candidateName = 
-                audit.userProfile?.fullName ||
-                (audit as any).userProfile?.full_name ||
-                (audit as any).checklistAudit?.userProfile?.fullName ||
-                (fullResume as any).parsedProfile?.basics?.name ||
-                r.name || 
-                "LinkedIn Profile"
-              
-              // Extract score from various possible locations
-              const score = 
-                (audit as any).checklistAudit?.overall_score ||
-                (audit as any).overall_score ||
-                (audit as any).optimizationReport?.totalScore ||
-                undefined
-              
-              console.log(`Found valid LinkedIn session: ${candidateName}, score: ${score}`)
-              
-              linkedInSessions.push({
-                id: r.id,
-                type: "review",
-                candidateName,
-                lastEdited: formatTimestamp(r.updatedAt),
-                score: score,
-                status: "complete" as const,
-              })
-              
-              // Stop after finding 3 valid LinkedIn profiles
-              if (linkedInSessions.length >= 3) break
-            }
-          } catch (error) {
-            console.log(`Could not fetch data for resume ${r.id}:`, error)
+            if (linkedInSessions.length >= 3) break
           }
         }
 
-        console.log(`Found ${linkedInSessions.length} LinkedIn sessions with audit data`)
+        // If we don't have enough sessions, try fetching full data for items without names
+        if (linkedInSessions.length < 3) {
+          for (const r of resumes) {
+            if (linkedInSessions.some(s => s.id === r.id)) continue
+            if (linkedInSessions.length >= 3) break
+            
+            try {
+              const fullResume = await resumeService.getResume(r.id)
+              const audit = fullResume?.linkedInAudit
+              
+              const hasAuditData = audit && (
+                audit.userProfile || 
+                (audit as any).checklistAudit?.banners ||
+                (audit as any).optimizationReport ||
+                (audit as any).banners
+              )
+              
+              if (hasAuditData) {
+                const candidateName = 
+                  audit.userProfile?.fullName ||
+                  (audit as any).userProfile?.full_name ||
+                  (audit as any).checklistAudit?.userProfile?.fullName ||
+                  (fullResume as any).parsedProfile?.basics?.name ||
+                  r.name || 
+                  "LinkedIn Profile"
+                
+                const score = 
+                  (audit as any).checklistAudit?.overall_score ||
+                  (audit as any).overall_score ||
+                  (audit as any).optimizationReport?.totalScore ||
+                  undefined
+                
+                linkedInSessions.push({
+                  id: r.id,
+                  type: "review",
+                  candidateName,
+                  lastEdited: formatTimestamp(r.updatedAt),
+                  score: score,
+                  status: "complete" as const,
+                })
+              }
+            } catch (error) {
+              console.log(`Could not fetch data for resume ${r.id}:`, error)
+            }
+          }
+        }
+
         setSessions(linkedInSessions)
       } catch (error) {
         console.error("Failed to load sessions:", error)
@@ -130,7 +150,6 @@ export default function LinkedInLanding() {
 
   const handleActionClick = (action: "create" | "review" | "improve") => {
     setSelectedMode(action)
-    // Optional: Auto-focus input or scroll to it?
   }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,14 +160,12 @@ export default function LinkedInLanding() {
       setIsUploading(true)
 
       if (selectedMode === "create") {
-        // Create Mode: Upload Resume -> Parse -> Go to Create Workspace
         const result = await resumeService.uploadAndCreateLinkedInProject(file)
-        setParsedProfile(result.parsedProfile) // Store parsed profile
+        setParsedProfile(result.parsedProfile)
         navigate(`/linkedin/create/${result.projectId}`, {
           state: { startMode: "create" }
         })
       } else {
-        // Review/Improve Mode: Upload LinkedIn PDF -> Audit -> Go to Workspace
         const result = await resumeService.reviewLinkedInProfile(file)
         setLinkedInAudit(result.audit)
         navigate(`/linkedin/workspace/${result.projectId}`, {
@@ -160,7 +177,6 @@ export default function LinkedInLanding() {
       }
     } catch (error) {
       console.error("Upload failed:", error)
-      // TODO: Show error toast
     } finally {
       setIsUploading(false)
     }
@@ -173,38 +189,28 @@ export default function LinkedInLanding() {
   const handleUrlSubmit = async () => {
     if (!linkedInUrl.trim() || !selectedMode) return
 
-    // For review/improve modes with LinkedIn URL, extract directly
     if ((selectedMode === "review" || selectedMode === "improve") && linkedInUrl.trim()) {
       try {
         setIsExtracting(true)
         setLoadingMessage("Fetching your LinkedIn profile...")
         
-        // PHASE 1: Fetch profile quickly (2-3 seconds)
         const profileResult = await resumeService.fetchLinkedInProfile(linkedInUrl.trim())
-        
-        // Store profile in context
         setParsedProfile(profileResult.profile)
         
-        // Navigate to workspace immediately with profile data (no audit yet)
         navigate(`/linkedin/workspace/${profileResult.projectId}`, {
           state: {
             parsedProfile: profileResult.profile,
             startMode: selectedMode,
-            isLoadingAudit: true, // Signal that audit is still loading
+            isLoadingAudit: true,
             linkedInUrl: linkedInUrl.trim(),
           },
         })
         
-        // PHASE 2: Run audit in background (will be handled by workspace)
-        // The workspace will poll or fetch the audit
-        
       } catch (error) {
         console.error("URL extraction failed:", error)
-        // TODO: Show error toast
         setIsExtracting(false)
       }
     } else {
-      // For create mode or other cases, navigate to review page
       navigate("/linkedin/review", { state: { linkedInUrl, startMode: selectedMode } })
     }
   }
@@ -215,157 +221,181 @@ export default function LinkedInLanding() {
     })
   }
 
+  // Card configurations for the action cards
+  const actionCards = [
+    {
+      id: "create" as const,
+      icon: Sparkles,
+      title: "Create from Resume",
+      description: "Build a perfect profile in minutes",
+      badge: null,
+    },
+    {
+      id: "review" as const,
+      icon: Search,
+      title: "Review Profile",
+      description: "Get an instant optimization score",
+      badge: "Popular",
+    },
+    {
+      id: "improve" as const,
+      icon: TrendingUp,
+      title: "Improve Profile",
+      description: "AI-powered suggestions & fixes",
+      badge: null,
+    },
+  ]
+
   return (
     <div className={cn(
-      "min-h-screen font-['Inter',sans-serif] transition-colors relative",
-      isDark ? "bg-[#0C0C0C]" : "bg-white"
+      "min-h-screen font-['Inter',sans-serif] transition-colors relative flex flex-col",
+      isDark ? "bg-[#0A0A0B]" : "bg-white"
     )}>
-      <div className="max-w-2xl mx-auto pt-12 sm:pt-24 px-4 sm:px-8 pb-12">
-        {/* Header */}
-        <div className="text-center mb-8 sm:mb-12">
+      {/* Main content - centered vertically */}
+      <div className="relative flex-1 flex flex-col justify-center max-w-[680px] mx-auto w-full px-6 sm:px-8 py-8">
+        {/* Header - Clean typography */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.19, 1, 0.22, 1] }}
+          className="text-center mb-10 sm:mb-12"
+        >
           <h1 className={cn(
-            "text-2xl sm:text-4xl font-medium tracking-tight",
-            isDark ? "text-white" : "text-gray-900"
+            "text-3xl sm:text-[46px] font-semibold tracking-tight leading-[1.15]",
+            isDark ? "text-white" : "text-[#111827]"
           )}>
             Let's perfect your LinkedIn, {firstName}.
           </h1>
           <p className={cn(
-            "text-sm sm:text-base mt-3 sm:mt-4",
-            isDark ? "text-gray-400" : "text-gray-500"
+            "text-base sm:text-[17px] mt-4",
+            isDark ? "text-[#A1A1AA]" : "text-[#6B7280]"
           )}>
             How would you like to begin?
           </p>
-        </div>
+        </motion.div>
 
-        {/* Action Cards Grid - Responsive: 1 col on mobile, 3 on desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          {/* Card 1: Create */}
-          <button
-            onClick={() => handleActionClick("create")}
-            className={cn(
-              "relative w-full rounded-2xl sm:rounded-3xl border-[1.5px] transition-all duration-200",
-              "h-auto min-h-[80px] sm:h-36 p-4 sm:p-0",
-              "flex sm:block items-center gap-3 sm:gap-0",
-              selectedMode === "create"
-                ? (isDark ? "bg-[#202325] border-green-500/50 ring-1 ring-green-500/20" : "bg-white border-green-500 ring-1 ring-green-100")
-                : (isDark ? "bg-[#202325] border-[#303437] hover:bg-[#2a2d30]" : "bg-white border-[#E5E7EB] hover:bg-gray-50")
+        {/* Action Tiles Grid - Premium tactile cards */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: [0.19, 1, 0.22, 1] }}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5"
+        >
+          {actionCards.map((card) => {
+            const isSelected = selectedMode === card.id
+            const Icon = card.icon
+            
+            return (
+              <motion.button
+                key={card.id}
+                onClick={() => handleActionClick(card.id)}
+                whileHover={{ y: -4 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                className={cn(
+                  "relative w-full rounded-[24px] transition-all duration-300 overflow-visible",
+                  "h-auto min-h-[80px] sm:h-[160px] p-5 sm:p-6",
+                  "flex sm:flex-col items-center sm:items-start gap-4 sm:gap-0",
+                  "text-left",
+                  // No border - shadow-based depth with brand purple
+                  isSelected
+                    ? isDark 
+                      ? "bg-[#1C1C1F] shadow-[0_8px_30px_rgba(129,95,170,0.2)] ring-2 ring-[#815FAA]/30" 
+                      : "bg-white shadow-[0_8px_30px_rgba(129,95,170,0.15)] ring-2 ring-[#815FAA]/25"
+                    : isDark 
+                      ? "bg-[#111113] shadow-[0_4px_20px_rgb(0,0,0,0.3)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.4)] hover:ring-2 hover:ring-[#815FAA]/20" 
+                      : "bg-white shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.08)] hover:ring-2 hover:ring-[#815FAA]/20"
+                )}
+              >
+                {/* Floating "Popular" Badge */}
+                {card.badge && (
+                  <div className="absolute -top-2.5 -right-2 sm:-top-3 sm:-right-3 z-10">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-white bg-gradient-to-r from-[#815FAA] to-[#684C8A] shadow-lg shadow-[#815FAA]/25">
+                      {card.badge}
+                    </span>
+                  </div>
+                )}
+
+                {/* Icon container - 48x48 anchored */}
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-300",
+                  isSelected
+                    ? "bg-[#DFC4FF]"
+                    : isDark ? "bg-[#1C1C1F] group-hover:bg-[#815FAA]/10" : "bg-[#DFC4FF]/50"
+                )}>
+                  <Icon className={cn(
+                    "w-5 h-5 transition-colors duration-300",
+                    isSelected ? "text-[#684C8A]" : (isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")
+                  )} strokeWidth={1.75} />
+                </div>
+
+                {/* Text content */}
+                <div className="flex-1 sm:mt-auto">
+                  <h3 className={cn(
+                    "text-[15px] sm:text-[16px] font-semibold leading-snug",
+                    isDark ? "text-white" : "text-[#111827]"
+                  )}>
+                    {card.title}
+                  </h3>
+                  <p className={cn(
+                    "text-[12px] sm:text-[13px] mt-1 leading-relaxed",
+                    isDark ? "text-[#71717A]" : "text-[#9CA3AF]"
+                  )}>
+                    {card.description}
+                  </p>
+                </div>
+
+                {/* Selection indicator - subtle glow ring handled in container */}
+              </motion.button>
+            )
+          })}
+        </motion.div>
+
+        {/* Mega Pill Input Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.19, 1, 0.22, 1] }}
+          className={cn(
+            "mt-10 h-16 rounded-full flex items-center pl-3 pr-2 relative transition-all duration-300",
+            isDark
+              ? "bg-[#111113] shadow-[0_4px_20px_rgb(0,0,0,0.4),inset_0_1px_0_rgb(255,255,255,0.03)]"
+              : "bg-white shadow-[0_8px_30px_rgb(0,0,0,0.08),inset_0_-2px_4px_rgb(0,0,0,0.02)]",
+            selectedMode ? "opacity-100 translate-y-0" : "opacity-40 translate-y-2 pointer-events-none"
+          )}
+        >
+          {/* Attach Button - Inside pill */}
+          <AnimatePresence>
+            {selectedMode && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: "auto", opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden flex items-center mr-2"
+              >
+                <button
+                  onClick={handleAttachClick}
+                  disabled={isUploading}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium transition-all whitespace-nowrap",
+                    isDark
+                      ? "bg-[#1C1C1F] hover:bg-[#252528] text-[#E4E4E7]"
+                      : "bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#374151]"
+                  )}
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#815FAA]" />
+                  ) : (
+                    <Paperclip className={cn("w-4 h-4", isDark ? "text-[#A1A1AA]" : "text-[#6B7280]")} />
+                  )}
+                  <span>
+                    {isUploading ? "Uploading..." : selectedMode === "create" ? "Attach Resume" : "Attach PDF"}
+                  </span>
+                </button>
+              </motion.div>
             )}
-          >
-            {/* Icon - flexbox on mobile, absolute on desktop */}
-            <div className="sm:absolute sm:top-5 sm:left-5 flex-shrink-0">
-              <Sparkles className={cn(
-                "w-6 h-6 transition-colors",
-                selectedMode === "create" ? "text-green-500" : (isDark ? "text-gray-400" : "text-gray-500")
-              )} strokeWidth={1.5} />
-            </div>
-
-            {/* Text - inline on mobile, absolute on desktop */}
-            <h3 className={cn(
-              "sm:absolute sm:bottom-5 sm:left-5 sm:right-5 text-sm sm:text-base font-medium sm:text-center text-left flex-1",
-              isDark ? "text-white" : "text-gray-900"
-            )}>
-              Create profile using resume
-            </h3>
-
-            {/* Popular Badge - right side on mobile, top-right on desktop */}
-            <div className="sm:absolute sm:top-5 sm:right-5 flex-shrink-0">
-              <span className={cn(
-                "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md",
-                isDark ? "text-green-400 bg-green-900/30" : "text-green-600 bg-green-50"
-              )}>
-                Popular
-              </span>
-            </div>
-          </button>
-
-          {/* Card 2: Review */}
-          <button
-            onClick={() => handleActionClick("review")}
-            className={cn(
-              "relative w-full rounded-2xl sm:rounded-3xl border-[1.5px] transition-all duration-200",
-              "h-auto min-h-[80px] sm:h-36 p-4 sm:p-0",
-              "flex sm:block items-center gap-3 sm:gap-0",
-              selectedMode === "review"
-                ? (isDark ? "bg-[#202325] border-blue-500/50 ring-1 ring-blue-500/20" : "bg-white border-blue-500 ring-1 ring-blue-100")
-                : (isDark ? "bg-[#202325] border-[#303437] hover:bg-[#2a2d30]" : "bg-white border-[#E5E7EB] hover:bg-gray-50")
-            )}
-          >
-            <div className="sm:absolute sm:top-5 sm:left-5 flex-shrink-0">
-              <Search className={cn(
-                "w-6 h-6 transition-colors",
-                selectedMode === "review" ? "text-blue-500" : (isDark ? "text-gray-400" : "text-gray-500")
-              )} strokeWidth={1.5} />
-            </div>
-
-            <h3 className={cn(
-              "sm:absolute sm:bottom-5 sm:left-5 sm:right-5 text-sm sm:text-base font-medium sm:text-center text-left flex-1",
-              isDark ? "text-white" : "text-gray-900"
-            )}>
-              Review your profile
-            </h3>
-          </button>
-
-          {/* Card 3: Improve */}
-          <button
-            onClick={() => handleActionClick("improve")}
-            className={cn(
-              "relative w-full rounded-2xl sm:rounded-3xl border-[1.5px] transition-all duration-200",
-              "h-auto min-h-[80px] sm:h-36 p-4 sm:p-0",
-              "flex sm:block items-center gap-3 sm:gap-0",
-              selectedMode === "improve"
-                ? (isDark ? "bg-[#202325] border-[#815FAA]/50 ring-1 ring-[#815FAA]/20" : "bg-white border-[#815FAA] ring-1 ring-[#DFC4FF]/30")
-                : (isDark ? "bg-[#202325] border-[#303437] hover:bg-[#2a2d30]" : "bg-white border-[#E5E7EB] hover:bg-gray-50")
-            )}
-          >
-            <div className="sm:absolute sm:top-5 sm:left-5 flex-shrink-0">
-              <TrendingUp className={cn(
-                "w-6 h-6 transition-colors",
-                selectedMode === "improve" ? "text-[#815FAA]" : (isDark ? "text-gray-400" : "text-gray-500")
-              )} strokeWidth={1.5} />
-            </div>
-
-            <h3 className={cn(
-              "sm:absolute sm:bottom-5 sm:left-5 sm:right-5 text-sm sm:text-base font-medium sm:text-center text-left flex-1",
-              isDark ? "text-white" : "text-gray-900"
-            )}>
-              Improve your profile
-            </h3>
-          </button>
-        </div>
-
-        {/* Dynamic Input Bar */}
-        <div className={cn(
-          "mt-8 h-14 rounded-full shadow-sm flex items-center px-2 relative border transition-all duration-300",
-          isDark
-            ? "bg-[#202325] border-[#303437]"
-            : "bg-white border-gray-200",
-          selectedMode ? "opacity-100 translate-y-0" : "opacity-60 translate-y-2 pointer-events-none" // Fade out if no mode
-        )}>
-          {/* Attach Button (Visible when mode selected) */}
-          <div className={cn(
-            "overflow-hidden transition-all duration-300 flex items-center",
-            selectedMode ? "w-auto mr-2 opactiy-100" : "w-0 mr-0 opacity-0"
-          )}>
-            <button
-              onClick={handleAttachClick}
-              disabled={isUploading}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap",
-                isDark
-                  ? "bg-[#303437] hover:bg-[#404040] text-gray-200"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-              )}
-            >
-              {isUploading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-              ) : (
-                <Paperclip className="w-4 h-4 text-gray-500" />
-              )}
-              <span>
-                {isUploading ? "Uploading..." : selectedMode === "create" ? "Attach Resume PDF" : "Attach Linkedin PDF"}
-              </span>
-            </button>
-          </div>
+          </AnimatePresence>
 
           <input
             type="text"
@@ -377,31 +407,35 @@ export default function LinkedInLanding() {
                 "Paste your LinkedIn URL..."
             }
             className={cn(
-              "flex-1 px-2 text-sm bg-transparent focus:outline-none",
+              "flex-1 px-3 text-[15px] bg-transparent focus:outline-none",
               isDark
-                ? "text-white placeholder:text-gray-500"
-                : "text-gray-900 placeholder:text-gray-400"
+                ? "text-white placeholder:text-[#52525B]"
+                : "text-[#111827] placeholder:text-[#9CA3AF]"
             )}
             disabled={!selectedMode}
           />
 
+          {/* Circular Go Button - sits inside the pill */}
           <button
             onClick={handleUrlSubmit}
             disabled={!linkedInUrl.trim() || isExtracting}
             className={cn(
-              "w-9 h-9 rounded-full flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-              isDark
-                ? "bg-[#303437] hover:bg-[#404040]"
-                : "bg-gray-100 hover:bg-gray-200"
+              "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 flex-shrink-0",
+              "disabled:opacity-40 disabled:cursor-not-allowed",
+              linkedInUrl.trim() && !isExtracting
+                ? "bg-gradient-to-r from-[#815FAA] to-[#684C8A] hover:from-[#684C8A] hover:to-[#5a4177] text-white shadow-lg shadow-[#815FAA]/30"
+                : isDark
+                  ? "bg-[#1C1C1F] text-[#52525B]"
+                  : "bg-[#F3F4F6] text-[#D1D5DB]"
             )}
           >
             {isExtracting ? (
-              <Loader2 className={cn("w-5 h-5 animate-spin", isDark ? "text-gray-400" : "text-gray-600")} />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <ArrowRight className={cn("w-5 h-5", isDark ? "text-gray-400" : "text-gray-600")} />
+              <ArrowRight className="w-5 h-5" />
             )}
           </button>
-        </div>
+        </motion.div>
 
         {/* Hidden File Input */}
         <input
@@ -412,116 +446,149 @@ export default function LinkedInLanding() {
           className="hidden"
         />
 
-        {/* Continue Your Journey */}
-        {!isLoadingSessions && sessions.length > 0 && (
-          <div className="mt-12">
-            <h2 className={cn(
-              "text-sm font-medium mb-4",
-              isDark ? "text-gray-400" : "text-gray-500"
-            )}>Continue Your Journey</h2>
+        {/* Continue Your Journey - Floating strips */}
+        <AnimatePresence>
+          {!isLoadingSessions && sessions.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-16"
+            >
+              {/* Micro label */}
+              <p className={cn(
+                "text-[11px] font-semibold uppercase tracking-[0.08em] mb-5",
+                isDark ? "text-[#71717A]" : "text-[#9CA3AF]"
+              )}>
+                Continue Your Journey
+              </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              {sessions.slice(0, 3).map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => handleSessionClick(session.id, session.type)}
-                  className={cn(
-                    "relative rounded-2xl border transition-colors text-left",
-                    // Mobile: horizontal card layout
-                    "flex sm:flex-col items-center sm:items-stretch gap-3 sm:gap-0",
-                    "p-3 sm:p-4 h-auto sm:h-36",
-                    isDark
-                      ? "bg-[#202325] border-[#303437] hover:border-[#815FAA]/50"
-                      : "bg-white border-gray-100 hover:border-[#BC9CE2]"
-                  )}
-                >
-                  {/* Icon - left on mobile, top-left on desktop */}
-                  <div className={cn(
-                    "w-10 h-10 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center flex-shrink-0",
-                    isDark ? "bg-[#815FAA]/20" : "bg-[#815FAA]/10"
-                  )}>
-                    <Search className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
-                  </div>
-
-                  {/* Content - middle on mobile, fills card on desktop */}
-                  <div className="flex-1 sm:flex sm:flex-col sm:justify-between sm:mt-2 min-w-0">
-                    <div className="space-y-0.5 sm:space-y-2">
-                      <h3 className={cn(
-                        "font-semibold text-sm line-clamp-1",
-                        isDark ? "text-white" : "text-gray-900"
-                      )}>
-                        {session.candidateName}
-                      </h3>
-
-                      <p className={cn(
-                        "text-[11px] line-clamp-1",
-                        isDark ? "text-gray-500" : "text-gray-500"
-                      )}>
-                        Profile Review • {session.lastEdited}
-                      </p>
-                    </div>
-
-                    {/* Continue link - hidden on mobile, shown on desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {sessions.slice(0, 3).map((session, index) => (
+                  <motion.button
+                    key={session.id}
+                    onClick={() => handleSessionClick(session.id, session.type)}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.1 * index }}
+                    whileHover={{ y: -2 }}
+                    className={cn(
+                      "relative rounded-[24px] text-left transition-all duration-200",
+                      "flex sm:flex-col items-center sm:items-stretch gap-4 sm:gap-0",
+                      "p-4 sm:p-5 h-auto sm:h-[165px] border",
+                      isDark
+                        ? "bg-[#111113] border-[#27272A] hover:border-[#3F3F46]"
+                        : "bg-white border-[#E5E7EB] hover:border-[#D1D5DB]"
+                    )}
+                  >
+                    {/* Icon */}
                     <div className={cn(
-                      "hidden sm:flex items-center gap-1 text-xs font-medium mt-auto",
-                      isDark ? "text-[#BC9CE2]" : "text-[#815FAA]"
+                      "w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0",
+                      isDark ? "bg-[#815FAA]/10" : "bg-[#DFC4FF]/50"
                     )}>
-                      <span>Continue</span>
-                      <ChevronRight className="w-3 h-3" />
+                      <Search className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
                     </div>
-                  </div>
 
-                  {/* Score Badge - right side on mobile, stays visible */}
-                  {session.score !== undefined && (
-                    <span className={cn(
-                      "px-2 py-0.5 text-[10px] font-bold rounded flex-shrink-0 self-center sm:absolute sm:top-4 sm:right-4",
-                      session.score >= 80 
-                        ? (isDark ? "text-emerald-400 bg-emerald-900/30" : "text-emerald-700 bg-emerald-50")
-                        : session.score >= 50 
-                          ? (isDark ? "text-amber-400 bg-amber-900/30" : "text-amber-700 bg-amber-50")
-                          : (isDark ? "text-red-400 bg-red-900/30" : "text-red-700 bg-red-50")
-                    )}>
-                      {session.score}/100
-                    </span>
-                  )}
+                    {/* Content */}
+                    <div className="flex-1 sm:flex sm:flex-col sm:justify-between sm:mt-3 min-w-0">
+                      <div className="space-y-1">
+                        <h3 className={cn(
+                          "font-semibold text-[15px] line-clamp-1",
+                          isDark ? "text-white" : "text-[#111827]"
+                        )}>
+                          {session.candidateName}
+                        </h3>
 
-                  {/* Chevron - shown on mobile only */}
-                  <ChevronRight className={cn(
-                    "w-4 h-4 flex-shrink-0 sm:hidden",
-                    isDark ? "text-gray-500" : "text-gray-400"
-                  )} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                        <p className={cn(
+                          "text-[12px] line-clamp-1",
+                          isDark ? "text-[#71717A]" : "text-[#9CA3AF]"
+                        )}>
+                          Profile Review • {session.lastEdited}
+                        </p>
+                      </div>
+
+                      {/* Continue link - desktop only */}
+                      <div className={cn(
+                        "hidden sm:flex items-center gap-1.5 text-[13px] font-medium mt-auto",
+                        isDark ? "text-[#BC9CE2]" : "text-[#815FAA]"
+                      )}>
+                        <span>Continue</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+
+                    {/* Score Badge - Pill shaped */}
+                    {session.score !== undefined && (
+                      <span className={cn(
+                        "px-3 py-1 text-[11px] font-semibold rounded-full flex-shrink-0 self-center sm:absolute sm:top-5 sm:right-5",
+                        session.score >= 80 
+                          ? (isDark ? "text-emerald-400 bg-emerald-500/10" : "text-emerald-600 bg-emerald-50")
+                          : session.score >= 50 
+                            ? (isDark ? "text-amber-400 bg-amber-500/10" : "text-amber-600 bg-amber-50")
+                            : (isDark ? "text-red-400 bg-red-500/10" : "text-red-600 bg-red-50")
+                      )}>
+                        {session.score}/100
+                      </span>
+                    )}
+
+                    {/* Chevron - mobile only */}
+                    <ChevronRight className={cn(
+                      "w-5 h-5 flex-shrink-0 sm:hidden",
+                      isDark ? "text-[#52525B]" : "text-[#D1D5DB]"
+                    )} />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Loading Overlay */}
-      {isExtracting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className={cn(
-            "w-96 p-8 rounded-3xl shadow-2xl text-center",
-            isDark ? "bg-[#202325]" : "bg-white"
-          )}>
-            <div className="mb-6">
-              <Loader2 className="w-12 h-12 mx-auto animate-spin text-[#815FAA]" />
-            </div>
-            <h3 className={cn(
-              "text-xl font-medium mb-2",
-              isDark ? "text-white" : "text-gray-900"
-            )}>
-              {loadingMessage}
-            </h3>
-            <p className={cn(
-              "text-sm",
-              isDark ? "text-gray-400" : "text-gray-500"
-            )}>
-              This may take a moment
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Loading Overlay - Soft, rounded */}
+      <AnimatePresence>
+        {isExtracting && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className={cn(
+                "w-[90vw] max-w-md p-10 rounded-[32px] text-center",
+                isDark 
+                  ? "bg-[#1C1C1F] shadow-[0_25px_80px_rgb(0_0_0/0.5)]" 
+                  : "bg-white shadow-[0_25px_80px_rgb(0_0_0/0.15)]"
+              )}
+            >
+              <div className="mb-8">
+                <div className={cn(
+                  "w-16 h-16 mx-auto rounded-2xl flex items-center justify-center",
+                  isDark ? "bg-[#815FAA]/10" : "bg-[#DFC4FF]"
+                )}>
+                  <Loader2 className="w-8 h-8 animate-spin text-[#815FAA]" />
+                </div>
+              </div>
+              <h3 className={cn(
+                "text-xl font-semibold mb-2",
+                isDark ? "text-white" : "text-[#111827]"
+              )}>
+                {loadingMessage}
+              </h3>
+              <p className={cn(
+                "text-[15px]",
+                isDark ? "text-[#71717A]" : "text-[#6B7280]"
+              )}>
+                This may take a moment
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

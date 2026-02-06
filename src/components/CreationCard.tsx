@@ -67,10 +67,10 @@ export function CreationCard({
                 e.stopPropagation()
                 onDiscuss()
             }}
-            className="group relative px-4 py-2 overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow border border-purple-200 hover:bg-purple-50 flex items-center gap-2"
+            className="group relative px-4 py-2 overflow-hidden rounded-lg bg-white shadow-sm transition-all hover:shadow border border-[#BC9CE2] hover:bg-[#DFC4FF]/20 flex items-center gap-2"
         >
-            <Sparkles className="w-4 h-4 text-purple-600 group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-semibold text-purple-700">Refine with Copilot</span>
+            <Sparkles className="w-4 h-4 text-[#815FAA] group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-semibold text-[#684C8A]">Refine with Copilot</span>
         </button>
     )
 

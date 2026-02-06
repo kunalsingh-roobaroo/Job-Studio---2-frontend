@@ -4,17 +4,17 @@ import { Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
- * Premium Auto-fix Button Component
+ * Soft Minimalist Auto-fix Button Component
  * 
- * Design System Purple Palette:
- * - Lightest: #DFC4FF (Highlights, faint borders, glow effects)
- * - Lighter:  #BC9CE2
- * - Light:    #9D7FC1
- * - Base:     #815FAA (Primary backgrounds)
- * - Darkest:  #684C8A (Shadows, active states, borders)
+ * Brand Purple Palette:
+ * - Lightest: #DFC4FF (backgrounds, light fills)
+ * - Lighter:  #BC9CE2 (dark mode icons/accents)
+ * - Light:    #9D7FC1 (medium accents)
+ * - Base:     #815FAA (primary actions, buttons, icons)
+ * - Darkest:  #684C8A (hover states, gradient ends)
  */
 
-export type AutoFixButtonVariant = 'glass-glow' | 'solid-tactile' | 'ghost'
+export type AutoFixButtonVariant = 'primary' | 'soft' | 'ghost'
 export type AutoFixButtonSize = 'sm' | 'md' | 'lg'
 
 interface AutoFixButtonProps {
@@ -28,34 +28,34 @@ interface AutoFixButtonProps {
     loadingLabel?: string
 }
 
-// Size configurations
+// Size configurations - generous padding for soft feel
 const sizeConfig = {
     sm: {
-        padding: 'px-3 py-1.5',
-        text: 'text-xs',
-        gap: 'gap-1.5',
+        padding: 'px-4 py-2',
+        text: 'text-[13px]',
+        gap: 'gap-2',
         iconSize: 'w-3.5 h-3.5',
-        minWidth: 'min-w-[76px]',
+        minWidth: 'min-w-[90px]',
     },
     md: {
-        padding: 'px-4 py-2',
-        text: 'text-sm',
-        gap: 'gap-2',
+        padding: 'px-5 py-2.5',
+        text: 'text-[14px]',
+        gap: 'gap-2.5',
         iconSize: 'w-4 h-4',
-        minWidth: 'min-w-[92px]',
+        minWidth: 'min-w-[100px]',
     },
     lg: {
-        padding: 'px-5 py-2.5',
-        text: 'text-sm',
-        gap: 'gap-2',
+        padding: 'px-6 py-3',
+        text: 'text-[15px]',
+        gap: 'gap-2.5',
         iconSize: 'w-4 h-4',
-        minWidth: 'min-w-[108px]',
+        minWidth: 'min-w-[120px]',
     },
 }
 
 export const AutoFixButton: React.FC<AutoFixButtonProps> = ({
     onClick,
-    variant = 'glass-glow',
+    variant = 'primary',
     size = 'sm',
     isLoading = false,
     disabled = false,
@@ -76,65 +76,61 @@ export const AutoFixButton: React.FC<AutoFixButtonProps> = ({
     const config = sizeConfig[size]
     const isDisabled = disabled || isLoading
 
-    // Get variant-specific classes and styles
+    // Get variant-specific classes - full pill shapes, soft shadows
     const getVariantClasses = () => {
         switch (variant) {
-            case 'glass-glow':
+            case 'primary':
                 return cn(
-                    // Gradient background: Base (#815FAA) to Light (#9D7FC1)
-                    'bg-gradient-to-r from-[#815FAA] to-[#9D7FC1]',
-                    // Glass edge: Lightest (#DFC4FF) at 30% opacity
-                    'border border-[#DFC4FF]/30',
-                    // Text & font
+                    // Solid brand purple background
+                    'bg-[#815FAA]',
+                    // Text
                     'text-white font-medium',
-                    // Rounded corners
-                    'rounded-lg',
-                    // Base shadow with glow: Base (#815FAA) at 20% opacity
-                    'shadow-[0_2px_8px_rgba(129,95,170,0.25)]',
+                    // Full pill shape (no sharp corners!)
+                    'rounded-full',
+                    // Soft diffused shadow
+                    'shadow-[0_8px_30px_rgb(129_95_170/0.2)]',
                     // Transitions
-                    'transition-all duration-200 ease-out',
-                    // Hover: Enhanced glow
-                    !isDisabled && 'hover:shadow-[0_4px_16px_rgba(129,95,170,0.35)] hover:border-[#DFC4FF]/50',
+                    'transition-all duration-300 ease-out',
+                    // Hover: Darker + lift
+                    !isDisabled && 'hover:bg-[#684C8A] hover:shadow-[0_12px_40px_rgb(129_95_170/0.3)] hover:-translate-y-[2px]',
+                    // Active: Press
+                    !isDisabled && 'active:translate-y-0 active:shadow-[0_8px_30px_rgb(129_95_170/0.2)]',
                     // Disabled
-                    isDisabled && 'opacity-60 cursor-not-allowed'
+                    isDisabled && 'opacity-50 cursor-not-allowed'
                 )
             
-            case 'solid-tactile':
+            case 'soft':
                 return cn(
-                    // Solid background: Base (#815FAA)
-                    'bg-[#815FAA]',
-                    // Bottom border shadow for depth: Darkest (#684C8A)
-                    'shadow-[0_2px_0_0_#684C8A,0_4px_8px_rgba(104,76,138,0.25)]',
-                    // Text & font
-                    'text-white font-medium',
-                    // Squircle shape
-                    'rounded-lg',
+                    // Soft brand purple background
+                    'bg-[#DFC4FF]/40',
+                    // Brand purple text
+                    'text-[#815FAA] font-medium',
+                    // Full pill shape
+                    'rounded-full',
+                    // Soft shadow
+                    'shadow-[0_4px_20px_rgb(0_0_0/0.04)]',
                     // Transitions
-                    'transition-all duration-150 ease-out',
-                    // Hover: Shift to Light (#9D7FC1) and press down
-                    !isDisabled && 'hover:bg-[#9D7FC1] hover:shadow-[0_1px_0_0_#684C8A,0_2px_4px_rgba(104,76,138,0.2)] hover:translate-y-[1px]',
-                    // Active: Full press
-                    !isDisabled && 'active:shadow-[0_0px_0_0_#684C8A,0_1px_2px_rgba(104,76,138,0.15)] active:translate-y-[2px]',
+                    'transition-all duration-300 ease-out',
+                    // Hover: Slightly darker bg + lift
+                    !isDisabled && 'hover:bg-[#DFC4FF]/60 hover:shadow-[0_8px_30px_rgb(0_0_0/0.08)] hover:-translate-y-[2px]',
                     // Disabled
-                    isDisabled && 'opacity-60 cursor-not-allowed'
+                    isDisabled && 'opacity-50 cursor-not-allowed'
                 )
             
             case 'ghost':
                 return cn(
-                    // Transparent or faint Lightest (#DFC4FF) at 10% opacity
-                    'bg-[#DFC4FF]/10',
-                    // Border with Lightest (#DFC4FF) at 40% opacity
-                    'border border-[#DFC4FF]/40',
-                    // Text & Icon: Base (#815FAA)
+                    // Transparent base
+                    'bg-transparent',
+                    // Brand purple text
                     'text-[#815FAA] font-medium',
-                    // Rounded corners
-                    'rounded-lg',
+                    // Full pill shape
+                    'rounded-full',
                     // Transitions
-                    'transition-all duration-200 ease-out',
-                    // Hover: Fill with Lightest (#DFC4FF) at 30% opacity
-                    !isDisabled && 'hover:bg-[#DFC4FF]/30 hover:border-[#BC9CE2]/60',
+                    'transition-all duration-300 ease-out',
+                    // Hover: Fill with soft brand purple
+                    !isDisabled && 'hover:bg-[#DFC4FF]/40',
                     // Disabled
-                    isDisabled && 'opacity-60 cursor-not-allowed'
+                    isDisabled && 'opacity-50 cursor-not-allowed'
                 )
             
             default:
@@ -145,12 +141,11 @@ export const AutoFixButton: React.FC<AutoFixButtonProps> = ({
     // Icon color based on variant
     const getIconColor = () => {
         switch (variant) {
-            case 'glass-glow':
-                return 'text-[#DFC4FF]' // Lightest for contrast
-            case 'solid-tactile':
-                return 'text-[#DFC4FF]' // Lightest for contrast
+            case 'primary':
+                return 'text-white/90'
+            case 'soft':
             case 'ghost':
-                return 'text-[#815FAA]' // Base color
+                return 'text-[#815FAA]'
             default:
                 return 'text-white'
         }
@@ -159,11 +154,11 @@ export const AutoFixButton: React.FC<AutoFixButtonProps> = ({
     // Spinner color based on variant
     const getSpinnerColor = () => {
         switch (variant) {
-            case 'glass-glow':
-            case 'solid-tactile':
-                return 'text-[#DFC4FF]' // Lightest
+            case 'primary':
+                return 'text-white/90'
+            case 'soft':
             case 'ghost':
-                return 'text-[#815FAA]' // Base
+                return 'text-[#815FAA]'
             default:
                 return 'text-white'
         }
@@ -189,7 +184,7 @@ export const AutoFixButton: React.FC<AutoFixButtonProps> = ({
             )}
             whileHover={!isDisabled ? { scale: 1.02 } : undefined}
             whileTap={!isDisabled ? { scale: 0.98 } : undefined}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             layout
         >
             {/* Icon with smooth transition to spinner */}
@@ -237,27 +232,28 @@ export const AutoFixButton: React.FC<AutoFixButtonProps> = ({
 }
 
 /**
- * Glass/Glow Variant
- * Features: Gradient from Base to Light, glass edge, colored glow shadow
+ * Primary Variant - Full pill, violet background, white text
  */
-export const AutoFixButtonGlass: React.FC<Omit<AutoFixButtonProps, 'variant'>> = (props) => (
-    <AutoFixButton {...props} variant="glass-glow" />
+export const AutoFixButtonPrimary: React.FC<Omit<AutoFixButtonProps, 'variant'>> = (props) => (
+    <AutoFixButton {...props} variant="primary" />
 )
 
 /**
- * Solid & Tactile Variant
- * Features: Solid Base color, physical depth with bottom shadow, press animation
+ * Soft Variant - Full pill, soft violet background, violet text
  */
-export const AutoFixButtonSolid: React.FC<Omit<AutoFixButtonProps, 'variant'>> = (props) => (
-    <AutoFixButton {...props} variant="solid-tactile" />
+export const AutoFixButtonSoft: React.FC<Omit<AutoFixButtonProps, 'variant'>> = (props) => (
+    <AutoFixButton {...props} variant="soft" />
 )
 
 /**
- * Ghost Variant
- * Features: Transparent base, fills on hover, contextual/low noise
+ * Ghost Variant - Transparent, fills on hover
  */
 export const AutoFixButtonGhost: React.FC<Omit<AutoFixButtonProps, 'variant'>> = (props) => (
     <AutoFixButton {...props} variant="ghost" />
 )
+
+// Legacy exports for backward compatibility
+export const AutoFixButtonGlass = AutoFixButtonPrimary
+export const AutoFixButtonSolid = AutoFixButtonPrimary
 
 export default AutoFixButton

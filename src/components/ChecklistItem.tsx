@@ -126,7 +126,7 @@ export function ChecklistItem({
               <div className="space-y-3">
                 {/* Auto-Fix Button */}
                 <AutoFixButton
-                  variant="glass-glow"
+                  variant="primary"
                   size="lg"
                   label="Auto-Fix with Copilot"
                   loadingLabel="Fixing..."

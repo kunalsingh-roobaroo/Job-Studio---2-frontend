@@ -76,6 +76,155 @@ const BANNER_ICONS: Record<string, React.ElementType> = {
     recommendations: ThumbsUp
 }
 
+// ==================== Spikes Data (Hardcoded) ====================
+interface SpikeData {
+    id: string
+    title: string
+    subtitle: string
+    icon: React.ElementType
+    keyDrivers: string[]
+}
+
+const SPIKES_DATA: SpikeData[] = [
+    {
+        id: "search_discovery",
+        title: "Search & Discovery Spike",
+        subtitle: "Algorithmic Visibility",
+        icon: Star,
+        keyDrivers: [
+            "Keyword density in headline",
+            "Keywords in about section",
+            "Experience titles with standard role names",
+            "Skills section comprehensiveness",
+            "Location + industry tagging",
+            "Profile completeness score"
+        ]
+    },
+    {
+        id: "positioning",
+        title: "Positioning Spike",
+        subtitle: "Identity Clarity",
+        icon: User,
+        keyDrivers: [
+            "Headline clarity (role + domain + value)",
+            "Narrative consistency across sections",
+            "Niche clarity",
+            "Vertical specificity (e.g., 'AI in education ops' vs 'AI enthusiast')"
+        ]
+    },
+    {
+        id: "credibility",
+        title: "Credibility Spike",
+        subtitle: "Trust Signals",
+        icon: Award,
+        keyDrivers: [
+            "Brand associations (companies, institutes)",
+            "Recommendations",
+            "Endorsements",
+            "Verifiable timelines",
+            "Public work artifacts (portfolio)",
+            "Media mentions / publications"
+        ]
+    },
+    {
+        id: "authority",
+        title: "Authority Spike",
+        subtitle: "Perceived Expertise",
+        icon: BookOpen,
+        keyDrivers: [
+            "Insight posts",
+            "Technical breakdowns",
+            "Case studies",
+            "Long-form content",
+            "Educational threads",
+            "Opinionated but informed takes",
+            "Frameworks and models"
+        ]
+    },
+    {
+        id: "social_proof",
+        title: "Social Proof Spike",
+        subtitle: "Third-Party Validation",
+        icon: ThumbsUp,
+        keyDrivers: [
+            "Engagement on posts",
+            "Comments by respected people",
+            "Tagged collaborations",
+            "Mentions by others",
+            "Testimonials",
+            "Community presence"
+        ]
+    },
+    {
+        id: "network_proximity",
+        title: "Network Proximity Spike",
+        subtitle: "Graph Advantage",
+        icon: LinkIcon,
+        keyDrivers: [
+            "Proximity to decision-makers",
+            "Alumni networks",
+            "Founder circles",
+            "Operator clusters",
+            "Recruiter clusters",
+            "Community hubs"
+        ]
+    },
+    {
+        id: "activity",
+        title: "Activity Spike",
+        subtitle: "Feed Presence",
+        icon: Briefcase,
+        keyDrivers: [
+            "Posting frequency",
+            "Commenting quality",
+            "Thoughtful replies",
+            "Engagement loops",
+            "Recurring themes"
+        ]
+    },
+    {
+        id: "narrative",
+        title: "Narrative Spike",
+        subtitle: "Story Power",
+        icon: AlignLeft,
+        keyDrivers: [
+            "Journey storytelling",
+            "Transformation narratives",
+            "Mission clarity",
+            "Purpose-driven content",
+            "Founder/operator identity arc"
+        ]
+    },
+    {
+        id: "conversion",
+        title: "Conversion Spike",
+        subtitle: "Profile Funnel Design",
+        icon: CheckCircle2,
+        keyDrivers: [
+            "Clear CTA in About",
+            "Contact clarity",
+            "Calendly / email accessibility",
+            "'Open to work / collaborate' clarity",
+            "Service offering clarity",
+            "Role interest clarity"
+        ]
+    },
+    {
+        id: "signal_noise",
+        title: "Signal-to-Noise Spike",
+        subtitle: "Profile Quality Control",
+        icon: AlertTriangle,
+        keyDrivers: [
+            "No spammy buzzwords",
+            "No generic fluff",
+            "No cringe motivational quotes",
+            "No vague claims",
+            "Clean structure",
+            "Professional tone"
+        ]
+    }
+]
+
 // HARDCODED STATIC BEST PRACTICES - These never change
 const BANNER_BEST_PRACTICES: Record<string, string[]> = {
     photo: [
@@ -153,54 +302,75 @@ const BANNER_BEST_PRACTICES: Record<string, string[]> = {
 }
 
 // Best Practice Images - Add your image URLs here
-// You can use local images from /public folder or external URLs
+// Best Practice Images - mapped to actual files in /public/images/best-practices/
+// Available images: headshot-example.png, headline-example.png, about-hook.png,
+// action-verbs.png, skills-section.png, custom-url.png, education-section.png, certifications.jpg.png
 const BEST_PRACTICE_IMAGES: Record<string, string> = {
     // Photo/Headshot practices
-    "headshot": "/images/best-practices/headshot-example.jpg",
-    "photo": "/images/best-practices/headshot-example.jpg",
-    "professional attire": "/images/best-practices/professional-attire.jpg",
-    "eye contact": "/images/best-practices/eye-contact.jpg",
-    "background": "/images/best-practices/neutral-background.jpg",
+    "headshot": "/images/best-practices/headshot-example.png",
+    "photo": "/images/best-practices/headshot-example.png",
+    "professional attire": "/images/best-practices/headshot-example.png",
+    "eye contact": "/images/best-practices/headshot-example.png",
+    "background": "/images/best-practices/headshot-example.png",
+    "lighting": "/images/best-practices/headshot-example.png",
     
-    // Banner practices
-    "banner": "/images/best-practices/banner-example.jpg",
-    "1584x396": "/images/best-practices/banner-size.jpg",
+    // Banner practices (no banner image yet - will use headline as fallback)
+    "banner": "/images/best-practices/headline-example.png",
+    "1584x396": "/images/best-practices/headline-example.png",
     
     // Headline practices
-    "headline": "/images/best-practices/headline-example.jpg",
-    "120-220": "/images/best-practices/headline-length.jpg",
-    "value proposition": "/images/best-practices/value-proposition.jpg",
-    "keyword": "/images/best-practices/keywords-example.jpg",
+    "headline": "/images/best-practices/headline-example.png",
+    "120-220": "/images/best-practices/headline-example.png",
+    "120": "/images/best-practices/headline-example.png",
+    "220": "/images/best-practices/headline-example.png",
+    "value proposition": "/images/best-practices/headline-example.png",
+    "keyword": "/images/best-practices/headline-example.png",
+    "recruiter": "/images/best-practices/headline-example.png",
     
     // About section practices
-    "hook": "/images/best-practices/about-hook.jpg",
-    "opening": "/images/best-practices/about-hook.jpg",
-    "first-person": "/images/best-practices/first-person.jpg",
-    "call-to-action": "/images/best-practices/cta-example.jpg",
+    "hook": "/images/best-practices/about-hook.png",
+    "opening": "/images/best-practices/about-hook.png",
+    "first-person": "/images/best-practices/about-hook.png",
+    "first person": "/images/best-practices/about-hook.png",
+    "call-to-action": "/images/best-practices/about-hook.png",
+    "contact": "/images/best-practices/about-hook.png",
+    "metric": "/images/best-practices/about-hook.png",
     
     // Experience practices
-    "action verb": "/images/best-practices/action-verbs.jpg",
-    "metric": "/images/best-practices/metrics-example.jpg",
-    "achievement": "/images/best-practices/achievements.jpg",
-    "star": "/images/best-practices/star-format.jpg",
-    "bullet": "/images/best-practices/bullet-points.jpg",
+    "action verb": "/images/best-practices/action-verbs.png",
+    "action verbs": "/images/best-practices/action-verbs.png",
+    "bullet": "/images/best-practices/action-verbs.png",
+    "star": "/images/best-practices/action-verbs.png",
+    "situation": "/images/best-practices/action-verbs.png",
+    "achievement": "/images/best-practices/action-verbs.png",
+    "technologies": "/images/best-practices/action-verbs.png",
+    "tools": "/images/best-practices/action-verbs.png",
     
     // Skills practices
-    "skill": "/images/best-practices/skills-section.jpg",
-    "endorsement": "/images/best-practices/endorsements.jpg",
-    "30+": "/images/best-practices/skills-count.jpg",
+    "skill": "/images/best-practices/skills-section.png",
+    "skills": "/images/best-practices/skills-section.png",
+    "endorsement": "/images/best-practices/skills-section.png",
+    "30+": "/images/best-practices/skills-section.png",
+    "30": "/images/best-practices/skills-section.png",
+    "pin": "/images/best-practices/skills-section.png",
     
     // URL practices
-    "custom url": "/images/best-practices/custom-url.jpg",
-    "linkedin.com/in": "/images/best-practices/custom-url.jpg",
+    "custom url": "/images/best-practices/custom-url.png",
+    "linkedin.com/in": "/images/best-practices/custom-url.png",
+    "url": "/images/best-practices/custom-url.png",
     
     // Education practices
-    "education": "/images/best-practices/education-section.jpg",
-    "gpa": "/images/best-practices/education-section.jpg",
-    "honors": "/images/best-practices/education-section.jpg",
+    "education": "/images/best-practices/education-section.png",
+    "gpa": "/images/best-practices/education-section.png",
+    "honors": "/images/best-practices/education-section.png",
+    "dean": "/images/best-practices/education-section.png",
+    "coursework": "/images/best-practices/education-section.png",
+    "student": "/images/best-practices/education-section.png",
     
     // Certification practices
-    "certification": "/images/best-practices/certifications.jpg",
+    "certification": "/images/best-practices/certifications.png",
+    "certifications": "/images/best-practices/certifications.png",
+    "credential": "/images/best-practices/certifications.png",
 }
 
 // Function to get image URL for a practice
@@ -279,17 +449,17 @@ function BestPracticeItem({ practice }: { practice: string; index: number }) {
     }
     
     return (
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-[20px] bg-[#FAFAFA] border border-[#F3F4F6] overflow-hidden transition-all hover:border-[#E5E7EB] hover:shadow-[0_4px_20px_rgb(0_0_0/0.04)]">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center gap-4 p-5 text-left transition-colors"
             >
-                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
-                    <Lightbulb className="w-4 h-4 text-violet-600" />
+                                <div className="w-10 h-10 rounded-2xl bg-[#DFC4FF]/30 flex items-center justify-center flex-shrink-0">
+                                    <Lightbulb className="w-5 h-5 text-[#815FAA]" />
                 </div>
-                <p className="flex-1 text-sm font-medium text-slate-800">{practice}</p>
+                <p className="flex-1 text-[14px] font-medium text-[#111827]">{practice}</p>
                 <ChevronRight className={cn(
-                    "w-5 h-5 text-slate-400 transition-transform duration-200",
+                    "w-5 h-5 text-[#D1D5DB] transition-transform duration-300",
                     isExpanded && "rotate-90"
                 )} />
             </button>
@@ -300,25 +470,25 @@ function BestPracticeItem({ practice }: { practice: string; index: number }) {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
                         className="overflow-hidden"
                     >
-                        <div className="px-4 pb-4 pt-0 space-y-3">
+                        <div className="px-5 pb-5 pt-0 space-y-4">
                             {/* Image */}
                             {imageUrl && !imageError && (
-                                <div className="rounded-lg overflow-hidden border border-slate-200">
+                                <div className="rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white">
                                     <img 
                                         src={imageUrl}
                                         alt={`Best practice example for: ${practice}`}
-                                        className="w-full h-40 object-cover"
+                                        className="w-full h-auto object-contain"
                                         onError={() => setImageError(true)}
                                     />
                                 </div>
                             )}
                             
                             {/* Detailed Content */}
-                            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                                <p className="text-sm text-slate-600 leading-relaxed">
+                            <div className="bg-white rounded-2xl p-5 border border-[#F3F4F6]">
+                                <p className="text-[14px] text-[#4B5563] leading-relaxed">
                                     {getDetailedContent(practice)}
                                 </p>
                             </div>
@@ -666,15 +836,15 @@ function ExperienceChecklistItems({
                                                 <div>
                                                     <div className="flex items-center justify-between mb-3">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
-                                                                <Lightbulb className="w-4 h-4 text-purple-600" />
+                                                            <div className="w-8 h-8 rounded-full bg-[#DFC4FF]/30 flex items-center justify-center flex-shrink-0">
+                                                                <Lightbulb className="w-4 h-4 text-[#815FAA]" />
                                                             </div>
                                                             <h6 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                                                                 Suggested fix
                                                             </h6>
                                                         </div>
                                                         <AutoFixButton
-                                                            variant="glass-glow"
+                                                            variant="primary"
                                                             size="sm"
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
@@ -695,7 +865,7 @@ function ExperienceChecklistItems({
                                             {(!item.actionableFix || item.actionableFix.trim() === item.reasoning.trim()) && (
                                                 <div className="pt-2">
                                                     <AutoFixButton
-                                                        variant="glass-glow"
+                                                        variant="primary"
                                                         size="md"
                                                         label="Get personalized fix with AI"
                                                         loadingLabel="Generating fix..."
@@ -720,6 +890,65 @@ function ExperienceChecklistItems({
     )
 }
 
+// Spike Item Component for the Spikes view
+function SpikeItem({ spike, isExpanded, onToggle }: { 
+    spike: SpikeData
+    isExpanded: boolean
+    onToggle: () => void 
+}) {
+    return (
+        <div className="rounded-[20px] bg-[#FAFAFA] border border-[#F3F4F6] overflow-hidden transition-all hover:border-[#E5E7EB] hover:shadow-[0_4px_20px_rgb(0_0_0/0.04)]">
+            <button
+                onClick={onToggle}
+                className="w-full flex items-center gap-4 p-5 text-left transition-colors"
+            >
+                <div className="w-11 h-11 rounded-2xl bg-[#DFC4FF]/30 flex items-center justify-center flex-shrink-0">
+                    <spike.icon className="w-5 h-5 text-[#815FAA]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-medium text-[#111827]">{spike.title}</p>
+                    <p className="text-[12px] text-[#6B7280]">{spike.subtitle}</p>
+                </div>
+                <ChevronRight className={cn(
+                    "w-5 h-5 text-[#D1D5DB] transition-transform duration-300 flex-shrink-0",
+                    isExpanded && "rotate-90"
+                )} />
+            </button>
+            
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-5 pb-5 pt-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-3">
+                                Key Drivers
+                            </p>
+                            <div className="space-y-2">
+                                {spike.keyDrivers.map((driver, idx) => (
+                                    <div 
+                                        key={idx}
+                                        className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#E5E7EB]"
+                                    >
+                                        <div className="w-5 h-5 rounded-full bg-[#DFC4FF]/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <div className="w-2 h-2 rounded-full bg-[#815FAA]" />
+                                        </div>
+                                        <p className="text-[13px] text-[#374151] leading-relaxed">{driver}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}
+
 export function OptimizationSidebar({
     auditData,
     totalScore,
@@ -732,6 +961,8 @@ export function OptimizationSidebar({
     const [view, setView] = React.useState<'list' | 'detail'>('list')
     const [expandedChecklistItem, setExpandedChecklistItem] = React.useState<number | null>(null)
     const [detailTab, setDetailTab] = React.useState<'review' | 'practices'>('review')
+    const [mainTab, setMainTab] = React.useState<'checklist' | 'spikes'>('checklist')
+    const [expandedSpikeId, setExpandedSpikeId] = React.useState<string | null>(null)
     // const { currentLanguage } = useLanguage() // Temporarily unused, can re-enable for i18n
 
     const selectedItem = React.useMemo(() => {
@@ -763,113 +994,188 @@ export function OptimizationSidebar({
     }
 
     return (
-        <div className="w-full h-full flex flex-col bg-gray-50 overflow-hidden font-['Inter',sans-serif]">
-            {/* LinkedIn Score Header - Clean & Modern */}
-            <div className="p-6 bg-white border-b border-gray-100 flex-shrink-0">
-                <div className="flex items-center justify-between">
+        <div className="w-full h-full flex flex-col bg-white overflow-hidden font-['Inter',sans-serif]">
+            {/* LinkedIn Score Header - Hero Card with Gradient Mesh */}
+            <div className="p-8 flex-shrink-0 relative overflow-hidden border-b border-[#F3F4F6]">
+                {/* Soft purple gradient mesh background */}
+                <div 
+                    className="absolute inset-0 opacity-50"
+                    style={{
+                        background: 'radial-gradient(ellipse at 70% 30%, rgba(124, 58, 237, 0.06) 0%, transparent 50%), radial-gradient(ellipse at 30% 70%, rgba(139, 92, 246, 0.04) 0%, transparent 50%)'
+                    }}
+                />
+                
+                <div className="relative flex items-center justify-between">
                     <div>
-                        <h2 className="text-gray-900 text-2xl font-semibold">LinkedIn Score</h2>
-                        <p className="text-gray-500 text-sm mt-1">
-                            Profile analysis results
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">
+                            Profile Score
                         </p>
+                        <h2 className="text-[#111827] text-3xl font-bold tracking-tight">LinkedIn Score</h2>
                     </div>
-                    <div className="relative w-20 h-20 flex items-center justify-center">
+                    
+                    {/* Score Circle - Thick stroke, massive number */}
+                    <div className="relative w-24 h-24 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
                             <path
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none"
-                                stroke="#E5E7EB"
-                                strokeWidth="2"
+                                stroke="#F3F4F6"
+                                strokeWidth="3"
                             />
                             <path
                                 strokeDasharray={`${totalScore}, 100`}
                                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                 fill="none"
                                 stroke="#815FAA"
-                                strokeWidth="2.5"
+                                strokeWidth="3.5"
                                 strokeLinecap="round"
-                                style={{ filter: 'drop-shadow(0 0 3px rgba(129, 95, 170, 0.3))' }}
+                                className="transition-all duration-1000"
+                                style={{ 
+                                    filter: 'drop-shadow(0 0 6px rgba(129, 95, 170, 0.3))',
+                                }}
                             />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-gray-900">{totalScore}</span>
+                            <span className="text-3xl font-bold text-[#111827] tracking-tight">{totalScore}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Profile Summary */}
+                {/* Profile Summary - Soft rounded card with stronger shadow */}
                 {view === 'list' && auditData && 'checklistAudit' in auditData && auditData.checklistAudit?.summary && (
-                    <div className="mt-4 rounded-xl p-4" style={{ background: 'rgba(129, 95, 170, 0.08)' }}>
-                        <p className="text-sm leading-relaxed text-gray-700">
+                    <div className="relative mt-6 rounded-[20px] p-5 bg-[#FAFAFA] border border-[#F3F4F6]">
+                        <p className="text-[15px] leading-relaxed text-[#4B5563]">
                             {auditData.checklistAudit.summary}
                         </p>
                     </div>
                 )}
             </div>
 
-            {/* Checklist View - Modern Card Grid */}
+            {/* Checklist View - Floating Strips */}
             <AnimatePresence mode="wait">
                 {view === 'list' && (
                     <motion.div
                         key="list"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex-1 overflow-y-auto p-6 custom-scrollbar"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+                        className="flex-1 overflow-y-auto px-6 pb-6 pt-2 custom-scrollbar bg-white"
                     >
+                        {/* Toggle between Spikes and Optimization Checklist */}
+                        <div className="flex items-center gap-2 mb-4 p-1 rounded-full bg-[#F3F4F6]">
+                            <button
+                                onClick={() => setMainTab('spikes')}
+                                className={cn(
+                                    "flex-1 px-4 py-2 rounded-full text-[12px] font-semibold transition-all",
+                                    mainTab === 'spikes'
+                                        ? "bg-white text-[#815FAA] shadow-sm"
+                                        : "text-[#6B7280] hover:text-[#374151]"
+                                )}
+                            >
+                                Spikes
+                            </button>
+                            <button
+                                onClick={() => setMainTab('checklist')}
+                                className={cn(
+                                    "flex-1 px-4 py-2 rounded-full text-[12px] font-semibold transition-all",
+                                    mainTab === 'checklist'
+                                        ? "bg-white text-[#815FAA] shadow-sm"
+                                        : "text-[#6B7280] hover:text-[#374151]"
+                                )}
+                            >
+                                Optimization Checklist
+                            </button>
+                        </div>
+                        
+                        {/* Spikes View */}
+                        {mainTab === 'spikes' && (
+                            <div className="space-y-3">
+                                {SPIKES_DATA.map((spike, index) => (
+                                    <motion.div
+                                        key={spike.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05, duration: 0.3 }}
+                                    >
+                                        <SpikeItem 
+                                            spike={spike}
+                                            isExpanded={expandedSpikeId === spike.id}
+                                            onToggle={() => setExpandedSpikeId(expandedSpikeId === spike.id ? null : spike.id)}
+                                        />
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {/* Optimization Checklist View */}
+                        {mainTab === 'checklist' && (
                         <div className="space-y-3">
-                            {items.map((item) => {
-                                // Calculate status based on score percentage (more accurate than relying on backend status)
+                            {items.map((item, index) => {
+                                // Calculate status based on score percentage
                                 const scorePercent = item.maxScore && item.maxScore > 0 
                                     ? (item.score || 0) / item.maxScore * 100 
                                     : null
                                 
-                                // Determine display status based on score percentage
-                                // >= 80% = pass (green), 50-79% = warning (amber), < 50% = critical (red)
                                 const computedStatus: SidebarItemStatus = scorePercent !== null
                                     ? (scorePercent >= 80 ? 'pass' : scorePercent >= 50 ? 'warning' : 'critical')
-                                    : item.status // Fallback to backend status if no score
+                                    : item.status
                                 
                                 const displayScore = (item.score !== undefined && item.maxScore !== undefined)
                                     ? `${Math.round(item.score)}/${Math.round(item.maxScore)}`
                                     : null
                                 
                                 return (
-                                    <button
+                                    <motion.button
                                         key={item.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05, duration: 0.3 }}
                                         onClick={() => handleItemClick(item.id)}
-                                        className="w-full flex items-center justify-between p-4 rounded-xl bg-white shadow-sm transition-all hover:shadow-md group"
+                                        className={cn(
+                                            "w-full flex items-center justify-between p-5 rounded-[20px] bg-[#FAFAFA] transition-all duration-300 group",
+                                            "border border-[#F3F4F6] hover:border-[#E5E7EB]",
+                                            "hover:shadow-[0_8px_30px_rgb(0_0_0/0.06)] hover:-translate-y-[2px]"
+                                        )}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-gray-100 transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            <div className={cn(
+                                                "w-11 h-11 rounded-2xl flex items-center justify-center transition-colors",
+                                                computedStatus === 'pass' ? "bg-emerald-50 text-emerald-600" :
+                                                computedStatus === 'warning' ? "bg-amber-50 text-amber-600" :
+                                                computedStatus === 'critical' ? "bg-red-50 text-red-500" :
+                                                "bg-[#F3F4F6] text-[#6B7280]"
+                                            )}>
                                                 <item.icon className="w-5 h-5" />
                                             </div>
-                                            <span className="text-sm font-medium text-gray-900">
+                                            <span className="text-[15px] font-medium text-[#111827]">
                                                 {item.title}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-3">
+                                            {/* Status pill badge */}
+                                            {computedStatus !== 'pass' && (
+                                                <span className={cn(
+                                                    "px-3 py-1.5 rounded-full text-[12px] font-medium",
+                                                    computedStatus === 'warning' 
+                                                        ? "bg-amber-50 text-amber-600" 
+                                                        : "bg-red-50 text-red-600"
+                                                )}>
+                                                    {computedStatus === 'warning' ? 'Needs work' : 'Action needed'}
+                                                </span>
+                                            )}
                                             {displayScore && (
-                                                <span className="px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-600">
+                                                <span className="px-3 py-1.5 rounded-full bg-[#F3F4F6] text-[12px] font-semibold text-[#6B7280]">
                                                     {displayScore}
                                                 </span>
                                             )}
-                                            {computedStatus === 'pass' ? (
-                                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                            ) : computedStatus === 'warning' ? (
-                                                <AlertTriangle className="w-5 h-5 text-amber-500" />
-                                            ) : computedStatus === 'critical' ? (
-                                                <AlertTriangle className="w-5 h-5 text-red-500" />
-                                            ) : (
-                                                <Lightbulb className="w-5 h-5 text-gray-400" />
-                                            )}
-                                            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-400 group-hover:translate-x-0.5 transition-all" />
+                                            <ChevronRight className="w-5 h-5 text-[#D1D5DB] group-hover:text-[#9CA3AF] group-hover:translate-x-1 transition-all" />
                                         </div>
-                                    </button>
+                                    </motion.button>
                                 )
                             })}
                         </div>
+                        )}
                     </motion.div>
                 )}
                 {view === 'detail' && (
@@ -878,26 +1184,26 @@ export function OptimizationSidebar({
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex-1 flex flex-col overflow-hidden bg-gray-50"
+                        transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+                        className="flex-1 flex flex-col overflow-hidden bg-white"
                     >
-                        {/* Clean Back Bar */}
-                        <div className="px-6 py-4 flex items-center justify-between bg-white border-b border-gray-100 flex-shrink-0">
+                        {/* Back Bar - Minimal */}
+                        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0 border-b border-[#F3F4F6]">
                             <button
                                 onClick={handleBack}
-                                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
+                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#FAFAFA] border border-[#F3F4F6] text-[#4B5563] hover:text-[#111827] hover:border-[#E5E7EB] transition-all text-[14px] font-medium"
                             >
                                 <ChevronLeft className="w-4 h-4" />
                                 Back
                             </button>
-                            <span className="text-xs text-gray-400 font-mono">
-                                {items.findIndex(i => i.id === selectedId) + 1} / {items.length}
+                            <span className="text-[12px] text-[#9CA3AF] font-medium">
+                                {items.findIndex(i => i.id === selectedId) + 1} of {items.length}
                             </span>
                         </div>
 
-                        {/* Horizontal Scrollable Tab Bar - Premium Design */}
-                        <div className="px-6 py-3 overflow-x-auto custom-scrollbar flex-shrink-0 bg-white border-b border-gray-100">
-                            <div className="flex gap-1 min-w-max">
+                        {/* Horizontal Scrollable Tab Bar - Pill tabs with dot indicator */}
+                        <div className="px-6 py-4 overflow-x-auto custom-scrollbar flex-shrink-0 border-b border-[#F3F4F6]">
+                            <div className="inline-flex gap-2 p-1.5 bg-[#F9FAFB] rounded-full min-w-max">
                                 {items.map((item) => {
                                     const displayScore = (item.score !== undefined && item.maxScore !== undefined)
                                         ? `${Math.round(item.score)}/${Math.round(item.maxScore)}`
@@ -911,18 +1217,22 @@ export function OptimizationSidebar({
                                             key={item.id}
                                             onClick={() => handleItemClick(item.id)}
                                             className={cn(
-                                                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium whitespace-nowrap",
+                                                "flex items-center gap-2 px-4 py-2.5 rounded-full transition-all text-[14px] font-medium whitespace-nowrap",
                                                 isSelected 
-                                                    ? "bg-[#815FAA]/10 text-[#815FAA]" 
-                                                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                                    ? "bg-[#DFC4FF]/40 text-[#815FAA]" 
+                                                    : "text-[#6B7280] hover:text-[#374151]"
                                             )}
                                         >
+                                            {/* Brand purple dot for active */}
+                                            {isSelected && (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[#815FAA]" />
+                                            )}
                                             <IconComponent className="w-4 h-4" />
                                             <span>{item.title}</span>
                                             {displayScore && (
                                                 <span className={cn(
-                                                    "text-xs px-1.5 py-0.5 rounded",
-                                                    isSelected ? "bg-[#815FAA]/20" : "bg-gray-100"
+                                                    "text-[11px] px-2 py-0.5 rounded-full font-semibold",
+                                                    isSelected ? "bg-[#815FAA]/15" : "bg-white/60"
                                                 )}>
                                                     {displayScore}
                                                 </span>
@@ -933,42 +1243,40 @@ export function OptimizationSidebar({
                             </div>
                         </div>
 
-                        {/* Content Area - Modern Card Layout */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                            {/* Status Badge - Subtle & Clean */}
+                        {/* Content Area - Soft cards */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6 bg-white">
+                            {/* Status Badge - Soft pill */}
                             {selectedItem?.status !== 'pass' && (
                                 <div className="mb-6">
-                                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white shadow-sm">
-                                        {selectedItem?.status === 'critical' ? (
-                                            <>
-                                                <AlertTriangle className="w-4 h-4 text-red-500" />
-                                                <span className="text-sm font-medium text-red-600">Action required</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                                                <span className="text-sm font-medium text-amber-600">Needs improvement</span>
-                                            </>
-                                        )}
-                                    </div>
+                                    <span className={cn(
+                                        "inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium",
+                                        selectedItem?.status === 'critical' 
+                                            ? "bg-red-50 text-red-600" 
+                                            : "bg-amber-50 text-amber-600"
+                                    )}>
+                                        {selectedItem?.status === 'critical' ? 'Action required' : 'Needs improvement'}
+                                    </span>
                                 </div>
                             )}
 
-                            {/* Tab Navigation - Clean Segmented Control */}
-                            <div className="px-6 pt-6">
-                                <div className="inline-flex gap-1 p-1 bg-gray-100 rounded-lg">
+                            {/* Tab Navigation - Pill tabs with dot indicator */}
+                            <div className="px-6 pt-4">
+                                <div className="inline-flex gap-2 p-1.5 bg-[#F9FAFB] border border-[#F3F4F6] rounded-full">
                                     <button
                                         onClick={() => {
                                             setDetailTab('review')
                                             setExpandedChecklistItem(null)
                                         }}
                                         className={cn(
-                                            "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                                            "flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-medium transition-all",
                                             detailTab === 'review'
-                                                ? "bg-white text-gray-900 shadow-sm"
-                                                : "text-gray-600 hover:text-gray-900"
+                                                ? "bg-[#DFC4FF]/40 text-[#815FAA]"
+                                                : "text-[#6B7280] hover:text-[#374151]"
                                         )}
                                     >
+                                        {detailTab === 'review' && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#815FAA]" />
+                                        )}
                                         Review
                                     </button>
                                     <button
@@ -977,12 +1285,15 @@ export function OptimizationSidebar({
                                             setExpandedChecklistItem(null)
                                         }}
                                         className={cn(
-                                            "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                                            "flex items-center gap-2 px-5 py-2.5 rounded-full text-[14px] font-medium transition-all",
                                             detailTab === 'practices'
-                                                ? "bg-white text-gray-900 shadow-sm"
-                                                : "text-gray-600 hover:text-gray-900"
+                                                ? "bg-[#DFC4FF]/40 text-[#815FAA]"
+                                                : "text-[#6B7280] hover:text-[#374151]"
                                         )}
                                     >
+                                        {detailTab === 'practices' && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#815FAA]" />
+                                        )}
                                         Best practices
                                     </button>
                                 </div>
@@ -995,16 +1306,16 @@ export function OptimizationSidebar({
                                     
                                     {/* Summary Section - High-level overview only */}
                                     {selectedItem?.breakdown && (
-                                        <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl p-5 border border-slate-200">
+                                        <div className="bg-[#FAFAFA] rounded-[20px] p-5 border border-[#F3F4F6]">
                                             <div className="flex items-start gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center flex-shrink-0">
-                                                    <Info className="w-5 h-5 text-slate-600" />
+                                                <div className="w-10 h-10 rounded-2xl bg-white border border-[#F3F4F6] flex items-center justify-center flex-shrink-0">
+                                                    <Info className="w-5 h-5 text-[#6B7280]" />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                                                    <h4 className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] mb-2">
                                                         Quick Summary
                                                     </h4>
-                                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                                    <p className="text-[14px] text-[#4B5563] leading-relaxed">
                                                         {selectedItem.breakdown}
                                                     </p>
                                                 </div>
@@ -1014,7 +1325,7 @@ export function OptimizationSidebar({
                                     
                                     {/* Checklist Section Header */}
                                     <div>
-                                        <h4 className="text-sm font-semibold text-gray-900 mb-4">
+                                        <h4 className="text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-[0.08em] mb-4">
                                             {selectedItem?.id === 'experience' && selectedItem?.experienceEntries ? 'Individual experiences' : 'Detailed checklist'}
                                         </h4>
                                     </div>
@@ -1036,28 +1347,28 @@ export function OptimizationSidebar({
                                                                 setExpandedChecklistItem(expandedChecklistItem === expIdx ? null : expIdx)
                                                             }}
                                                             className={cn(
-                                                                "w-full p-4 rounded-xl border transition-all text-left group shadow-sm",
+                                                                "w-full p-5 rounded-[20px] border transition-all text-left group",
                                                                 expandedChecklistItem === expIdx 
-                                                                    ? "border-[#BC9CE2] bg-[#815FAA]/5 shadow-md" 
-                                                                    : "border-gray-200 hover:border-[#DFC4FF] hover:bg-slate-50 hover:shadow-md"
+                                                                    ? "border-[#815FAA]/30 bg-[#DFC4FF]/20" 
+                                                                    : "bg-[#FAFAFA] border-[#F3F4F6] hover:border-[#E5E7EB] hover:shadow-[0_4px_20px_rgb(0_0_0/0.04)]"
                                                             )}
                                                         >
                                                             <div className="flex items-start gap-3">
                                                                 {/* Icon */}
-                                                                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                                                                    <Briefcase className="w-5 h-5 text-slate-600" />
+                                                                <div className="w-10 h-10 rounded-2xl bg-[#F3F4F6] flex items-center justify-center flex-shrink-0">
+                                                                    <Briefcase className="w-5 h-5 text-[#6B7280]" />
                                                                 </div>
                                                                 
                                                                 {/* Content */}
                                                                 <div className="flex-1 min-w-0">
                                                                     <div className="flex items-start justify-between gap-2 mb-1">
-                                                                        <h4 className="text-sm font-semibold text-slate-900 line-clamp-1">
+                                                                        <h4 className="text-[14px] font-semibold text-[#111827] line-clamp-1">
                                                                             {experience.company} - {experience.jobTitle}
                                                                         </h4>
                                                                         <div className="flex items-center gap-2 flex-shrink-0">
                                                                             {/* Auto-fix button */}
                                                                             <AutoFixButton
-                                                                                variant="glass-glow"
+                                                                                variant="primary"
                                                                                 size="sm"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation()
@@ -1065,7 +1376,7 @@ export function OptimizationSidebar({
                                                                                     onFix?.(`experience_${expIdx}_autofix`, contextMessage)
                                                                                 }}
                                                                             />
-                                                                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                                                                            <span className="px-3 py-1 rounded-full bg-[#F3F4F6] text-[12px] font-semibold text-[#6B7280]">
                                                                                 {Math.round(expScore)}/{Math.round(expMaxScore)}
                                                                             </span>
                                                                             {expStatus === 'pass' ? (
@@ -1078,17 +1389,17 @@ export function OptimizationSidebar({
                                                                         </div>
                                                                     </div>
                                                                     {experience.duration && (
-                                                                        <p className="text-xs text-slate-500 mb-2">{experience.duration}</p>
+                                                                        <p className="text-[12px] text-[#9CA3AF] mb-2">{experience.duration}</p>
                                                                     )}
                                                                     {!expandedChecklistItem && (
-                                                                        <p className="text-xs text-slate-600 line-clamp-2">
+                                                                        <p className="text-[13px] text-[#6B7280] line-clamp-2">
                                                                             {experience.summary}
                                                                         </p>
                                                                     )}
                                                                 </div>
                                                                 
                                                                 <ChevronRight className={cn(
-                                                                    "w-4 h-4 flex-shrink-0 mt-1 transition-transform text-slate-400",
+                                                                    "w-4 h-4 flex-shrink-0 mt-1 transition-transform text-[#D1D5DB]",
                                                                     expandedChecklistItem === expIdx && "rotate-90"
                                                                 )} />
                                                             </div>
@@ -1101,15 +1412,15 @@ export function OptimizationSidebar({
                                                                     initial={{ opacity: 0, height: 0 }}
                                                                     animate={{ opacity: 1, height: "auto" }}
                                                                     exit={{ opacity: 0, height: 0 }}
-                                                                    transition={{ duration: 0.2 }}
-                                                                    className="overflow-hidden rounded-xl border border-gray-200 bg-white p-4 space-y-4 shadow-sm"
+                                                                    transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
+                                                                    className="overflow-hidden rounded-[20px] border border-[#F3F4F6] bg-white p-5 space-y-4"
                                                                 >
                                                                     {/* Summary */}
                                                                     <div>
-                                                                        <h5 className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-2">
+                                                                        <h5 className="text-[11px] font-semibold tracking-[0.08em] text-[#9CA3AF] uppercase mb-2">
                                                                             Analysis
                                                                         </h5>
-                                                                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                                                                        <p className="text-[14px] text-[#4B5563] leading-relaxed whitespace-pre-line">
                                                                             {experience.summary}
                                                                         </p>
                                                                     </div>
@@ -1229,7 +1540,7 @@ export function OptimizationSidebar({
                                                                             </h6>
                                                                         </div>
                                                                         <AutoFixButton
-                                                                            variant="glass-glow"
+                                                                            variant="primary"
                                                                             size="sm"
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation()
@@ -1250,7 +1561,7 @@ export function OptimizationSidebar({
                                                             {item.status !== 'pass' && !((item as any).actionableFix || item.solution) && (
                                                                 <div className="pt-2">
                                                                     <AutoFixButton
-                                                                        variant="glass-glow"
+                                                                        variant="primary"
                                                                         size="md"
                                                                         label="Get personalized fix with AI"
                                                                         loadingLabel="Generating fix..."

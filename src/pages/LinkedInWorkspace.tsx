@@ -111,6 +111,7 @@ function LinkedInWorkspace() {
     startMode?: WorkspaceMode;
     resumeUrl?: string;
     isLoading?: boolean;  // NEW: Indicates progressive loading
+    isLoadingAudit?: boolean;  // Indicates audit is being loaded
     linkedInUrl?: string;  // NEW: URL being analyzed
   } | null
 
@@ -137,6 +138,26 @@ function LinkedInWorkspace() {
   const [profileData, setProfileData] = React.useState<ParsedProfile | null>(null)
   const [showResume, setShowResume] = React.useState(false)
   const [resumeUrl] = React.useState<string | null>(navState?.resumeUrl || null)
+  
+  // Refs to prevent duplicate API calls (React StrictMode runs effects twice)
+  const extractionStartedRef = React.useRef(false)
+  const dataLoadedRef = React.useRef(false)
+  const lastResumeIdRef = React.useRef<string | null>(null)
+  
+  // Extract stable values from location.state to use in dependencies
+  const navLinkedInUrl = navState?.linkedInUrl
+  const navHasAudit = !!navState?.linkedInAudit
+  const navIsLoadingAudit = navState?.isLoadingAudit
+  const navHasParsedProfile = !!navState?.parsedProfile
+  
+  // Reset refs when resumeId changes (navigating to different project)
+  React.useEffect(() => {
+    if (resumeId && resumeId !== lastResumeIdRef.current) {
+      lastResumeIdRef.current = resumeId
+      dataLoadedRef.current = false
+      extractionStartedRef.current = false
+    }
+  }, [resumeId])
 
   // Debug logging
   React.useEffect(() => {
@@ -157,12 +178,20 @@ function LinkedInWorkspace() {
   }, [auditData, profileData, isLoading])
 
   React.useEffect(() => {
+    // Guard against duplicate calls from StrictMode or re-renders
+    if (dataLoadedRef.current) {
+      return
+    }
+    
     async function loadData() {
       if (!resumeId) {
         setError("No resume ID provided")
         setIsLoading(false)
         return
       }
+      
+      // Mark as loaded to prevent duplicate calls
+      dataLoadedRef.current = true
 
       try {
         setError(null)
@@ -218,30 +247,30 @@ function LinkedInWorkspace() {
           setIsLoading(false) // Show UI immediately with profile data
           setIsAuditLoading(true) // Show skeleton on left side
           
-          // Start audit in background
-          if (resumeId) {
-            resumeService.extractLinkedInFromUrl(navState.linkedInUrl || '')
+          // Start audit in background - but only once
+          // Use runLinkedInAudit which audits the existing project (created by fetch-profile)
+          // Now uses async polling to avoid CloudFront timeout
+          if (resumeId && !extractionStartedRef.current) {
+            extractionStartedRef.current = true
+            console.log('Starting async audit for project:', resumeId)
+            
+            resumeService.runLinkedInAudit(resumeId, {
+              onProgress: (progress) => {
+                console.log('Audit progress:', progress)
+                // Could update UI with progress message here if needed
+              }
+            })
               .then(result => {
                 console.log('Audit completed, updating UI')
                 setAuditData(result.audit)
                 setLinkedInAudit(result.audit)
                 setIsAuditLoading(false)
-                
-                // Update URL to use real project ID if different
-                if (result.projectId !== resumeId) {
-                  navigate(`/linkedin/workspace/${result.projectId}`, {
-                    state: {
-                      linkedInAudit: result.audit,
-                      startMode: navState?.startMode,
-                    },
-                    replace: true,
-                  })
-                }
               })
               .catch(err => {
                 console.error('Audit failed:', err)
                 setError('Failed to analyze profile. Please try again.')
                 setIsAuditLoading(false)
+                extractionStartedRef.current = false // Reset on error so user can retry
               })
           }
           return
@@ -359,12 +388,101 @@ function LinkedInWorkspace() {
             // Check if this is a URL-extracted profile (has linkedInSource or resumeS3Key starts with 'linkedin-url/')
             const isUrlExtracted = resume.resumeS3Key?.startsWith('linkedin-url/')
             
-            if (isUrlExtracted) {
-              // URL-extracted profiles should already have audit data
-              // If not, something went wrong - show error
-              console.error("URL-extracted profile missing audit data")
-              setError("Profile data is incomplete. Please try extracting the LinkedIn profile again.")
+            // Check if we have parsedProfile data to work with
+            const hasParsedProfile = resume.parsedProfile || (resume as any).parsedProfile
+            
+            if (isUrlExtracted && hasParsedProfile) {
+              // URL-extracted profile with parsedProfile - run audit on existing project
+              console.log("URL-extracted profile missing audit, starting async audit...")
               setIsLoading(false)
+              setIsAuditLoading(true)
+              
+              // Extract profile data for immediate display
+              if (resume.parsedProfile && !profileData) {
+                setProfileData(resume.parsedProfile)
+                setParsedProfile(resume.parsedProfile)
+              }
+              
+              // Start async audit using the new polling endpoint
+              resumeService.runLinkedInAudit(resumeId, {
+                onProgress: (progress) => {
+                  console.log('Audit progress:', progress)
+                }
+              })
+                .then(response => {
+                  setAuditData(response.audit)
+                  setLinkedInAudit(response.audit)
+                  // Update profile from audit if needed
+                  if (response.audit?.userProfile && !profileData) {
+                    const profile: ParsedProfile = {
+                      basics: {
+                        name: response.audit.userProfile?.fullName || '',
+                        headline: response.audit.userProfile?.headline || '',
+                        about: response.audit.userProfile?.about || '',
+                        location: response.audit.userProfile?.location || '',
+                        email: response.audit.userProfile?.email || '',
+                      },
+                      experience: response.audit.userProfile?.experience || [],
+                      education: response.audit.userProfile?.education || [],
+                      skills: response.audit.userProfile?.skills || [],
+                      certifications: response.audit.userProfile?.certifications || [],
+                      projects: [],
+                      languages: response.audit.userProfile?.languages || [],
+                      analysis: {
+                        missingSections: [],
+                        overallScore: 50,
+                        feedback: '',
+                        strengths: [],
+                        improvements: [],
+                      },
+                    }
+                    setProfileData(profile)
+                    setParsedProfile(profile)
+                  }
+                })
+                .catch(auditError => {
+                  console.error("Failed to generate audit:", auditError)
+                  setError("Failed to analyze LinkedIn profile. Please try again.")
+                })
+                .finally(() => {
+                  setIsAuditLoading(false)
+                })
+            } else if (isUrlExtracted && !hasParsedProfile) {
+              // URL-extracted but no profile data - try to re-fetch using username from resumeS3Key
+              // resumeS3Key format: "linkedin-url/username"
+              const linkedInUsername = resume.resumeS3Key?.replace('linkedin-url/', '')
+              
+              if (linkedInUsername) {
+                console.log("Re-fetching LinkedIn profile for username:", linkedInUsername)
+                setIsLoading(true)
+                
+                // Use the username as LinkedIn URL - this creates a NEW complete project
+                resumeService.extractLinkedInFromUrl(linkedInUsername, {
+                  onProgress: (progress) => {
+                    console.log('Re-extraction progress:', progress)
+                  }
+                })
+                  .then(result => {
+                    // Navigate to the new complete project
+                    console.log("Profile re-extracted, navigating to new project:", result.projectId)
+                    navigate(`/linkedin/workspace/${result.projectId}`, {
+                      state: { 
+                        linkedInAudit: result.audit,
+                        startMode: workspaceMode 
+                      },
+                      replace: true // Replace current history entry
+                    })
+                  })
+                  .catch(err => {
+                    console.error("Failed to re-fetch LinkedIn profile:", err)
+                    setError("Failed to fetch LinkedIn profile. Please try again from the landing page.")
+                    setIsLoading(false)
+                  })
+              } else {
+                console.error("URL-extracted profile missing parsedProfile data and no username found")
+                setError("Profile data is incomplete. Please try extracting the LinkedIn profile again.")
+                setIsLoading(false)
+              }
             } else {
               // PDF-based profile - generate audit
               // Show UI immediately with skeleton
@@ -425,8 +543,9 @@ function LinkedInWorkspace() {
     }
 
     loadData()
+    // Dependencies use stable primitive values extracted from location.state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeId, location.state])
+  }, [resumeId, navLinkedInUrl, navHasAudit, navIsLoadingAudit, navHasParsedProfile])
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections)
@@ -707,6 +826,7 @@ function LinkedInWorkspace() {
             initialMessage={copilotInitialMessage}
             onInitialMessageSent={() => setCopilotInitialMessage(undefined)}
             currentSection={_copilotSectionId}
+            projectId={resumeId}
             profileContext={{
               hasHeadlineIssues: auditData ? (() => {
                 const unified = convertAuditToUnified(auditData)
@@ -947,29 +1067,25 @@ function CreateModeContent({
           </div>
         ) : (
           <div
-            className="rounded-2xl p-8 text-center"
-            style={{
-              background: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
-              backdropFilter: isDark ? 'blur(20px)' : undefined,
-              border: isDark ? '1px solid rgba(255,255,255,0.1)' : 'none',
-              boxShadow: isDark ? 'inset 0 1px 0 0 rgba(255,255,255,0.1)' : '0 8px 30px rgb(0,0,0,0.06)',
-            }}
+            className={cn(
+              "rounded-[16px] p-8 text-center border",
+              isDark 
+                ? "bg-[#111113] border-[#27272A]" 
+                : "bg-white border-[#E5E7EB]"
+            )}
           >
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-              style={{ background: 'rgba(129,95,170,0.1)' }}
-            >
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[#DFC4FF]/30">
               <Sparkles className="h-8 w-8 text-[#815FAA]" />
             </div>
-            <h3 className={cn("text-lg font-semibold mb-2", isDark ? "text-white" : "text-[#0F172A]")}>
+            <h3 className={cn("text-lg font-semibold mb-2", isDark ? "text-white" : "text-[#111827]")}>
               Profile Score Not Available
             </h3>
-            <p className={cn("text-sm mb-4 max-w-md mx-auto", isDark ? "text-gray-400" : "text-gray-600")}>
+            <p className={cn("text-sm mb-4 max-w-md mx-auto", isDark ? "text-[#A1A1AA]" : "text-[#6B7280]")}>
               Your LinkedIn profile sections have been generated from your resume. To see a detailed score and feedback, we need to analyze the generated content.
             </p>
             <Button
               onClick={() => setCreateViewMode("sections")}
-              className="bg-[#815FAA] hover:bg-[#6B4E8A] text-white rounded-full"
+              className="bg-[#815FAA] hover:bg-[#684C8A] text-white rounded-full"
             >
               View Sections
             </Button>
@@ -1438,29 +1554,25 @@ function FallbackContent({
 
   return (
     <div
-      className="rounded-2xl p-8 text-center"
-      style={{
-        background: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
-        backdropFilter: isDark ? 'blur(20px)' : undefined,
-        border: isDark ? '1px solid rgba(255,255,255,0.1)' : 'none',
-        boxShadow: isDark ? 'inset 0 1px 0 0 rgba(255,255,255,0.1)' : '0 8px 30px rgb(0,0,0,0.06)',
-      }}
+      className={cn(
+        "rounded-[16px] p-8 text-center border",
+        isDark 
+          ? "bg-[#111113] border-[#27272A]" 
+          : "bg-white border-[#E5E7EB]"
+      )}
     >
-      <div
-        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-        style={{ background: 'rgba(129,95,170,0.1)' }}
-      >
+      <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[#DFC4FF]/30">
         <Award className="h-8 w-8 text-[#815FAA]" />
       </div>
-      <h3 className={cn("text-lg font-semibold mb-2", isDark ? "text-white" : "text-[#0F172A]")}>
+      <h3 className={cn("text-lg font-semibold mb-2", isDark ? "text-white" : "text-[#111827]")}>
         Generate Profile Audit
       </h3>
-      <p className={cn("text-sm mb-4 max-w-md mx-auto", isDark ? "text-gray-400" : "text-gray-600")}>
+      <p className={cn("text-sm mb-4 max-w-md mx-auto", isDark ? "text-[#A1A1AA]" : "text-[#6B7280]")}>
         We found your profile data but haven't generated an audit yet. Click below to analyze your LinkedIn profile.
       </p>
       <Button
         onClick={handleGenerateAudit}
-        className="bg-[#815FAA] hover:bg-[#6B4E8A] text-white rounded-full"
+        className="bg-[#815FAA] hover:bg-[#684C8A] text-white rounded-full"
       >
         <Sparkles className="h-4 w-4 mr-2" />
         Generate Audit

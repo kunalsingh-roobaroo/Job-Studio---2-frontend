@@ -433,7 +433,7 @@ export function YouLearnSidebar() {
                 "w-full flex items-center justify-center p-2 rounded-lg transition-colors",
                 isDark ? "hover:bg-[#202325]" : "hover:bg-gray-100"
               )}>
-                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#815FAA] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                   {firstName.charAt(0).toUpperCase()}
                 </div>
               </button>
@@ -461,7 +461,7 @@ export function YouLearnSidebar() {
                     ? "bg-[#202325] border-[#303437] hover:shadow-md"
                     : "bg-white border-[#E5E7EB] shadow-sm hover:shadow-md"
                 )}>
-                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#815FAA] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {firstName.charAt(0).toUpperCase()}
                   </div>
                   <span className={cn(

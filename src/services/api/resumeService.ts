@@ -184,25 +184,45 @@ export async function fetchLinkedInProfile(
 }
 
 /**
- * Run audit on existing project (after profile fetch)
+ * Run audit on existing project (after profile fetch) - ASYNC with polling
+ * Now uses background processing to avoid CloudFront timeout
  */
 export async function runLinkedInAudit(
   projectId: string,
   options?: {
     target_role?: string;
+    onProgress?: (progress: string) => void;
   }
 ): Promise<{ audit: LinkedInAudit | UnifiedLinkedInAudit }> {
-  const result = await apiClient.post<LinkedInAuditResponse>(
+  // Start async job (returns immediately)
+  const result = await apiClient.post<{
+    id: string;
+    status: string;
+    message: string;
+    audit?: any;
+    progress?: string;
+  }>(
     `/linkedin/audit-project/${projectId}`,
     {
       target_role: options?.target_role,
     },
-    { timeout: 300000 } // 5 minutes for LLM analysis
+    { timeout: 30000 } // 30 seconds - just to start the job
   );
 
-  return {
-    audit: result.data.audit,
-  };
+  // If already completed (cached audit exists), return immediately
+  if (result.data.status === 'completed' && result.data.audit) {
+    return { audit: result.data.audit };
+  }
+
+  // Initial progress update
+  if (options?.onProgress && result.data.progress) {
+    options.onProgress(result.data.progress);
+  }
+
+  // Poll for completion
+  const audit = await pollForJobCompletion(projectId, options?.onProgress);
+
+  return { audit };
 }
 
 /**
