@@ -6,6 +6,7 @@ import { AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AnimatedOrb } from "./AnimatedOrb"
 import { FloatingPrompts } from "./FloatingPrompts"
+import { motion } from "framer-motion"
 
 interface MessageListProps {
   messages: Message[]
@@ -22,11 +23,12 @@ interface MessageListProps {
     overallScore?: number
   }
   currentSection?: string | null
+  improvePrompts?: Array<{ label: string; prompt: string }>
 }
 
 const LAUNCH_SOUND_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/launch-SUi0itAGHr1wtvdDYYG5bzFLsIYHtP.mp3"
 
-export function MessageList({ messages, isStreaming, error, onRetry, isLoaded, onPromptClick, profileContext, currentSection }: MessageListProps) {
+export function MessageList({ messages, isStreaming, error, onRetry, isLoaded, onPromptClick, profileContext, currentSection, improvePrompts }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -146,18 +148,44 @@ export function MessageList({ messages, isStreaming, error, onRetry, isLoaded, o
             Hi, my name is Roo
           </p>
           <p className={`text-sm mt-1 mb-8 text-gray-400 ${hasAnimated ? "text-blur-intro-delay" : ""}`}>
-            Ask me anything about optimizing your LinkedIn profile
+            {improvePrompts && improvePrompts.length > 0
+              ? "I found some issues in your profile. Choose one to fix:"
+              : "Ask me anything about optimizing your LinkedIn profile"}
           </p>
           
-          {/* Floating Prompts */}
-          {onPromptClick && (
-            <div className="w-full max-w-md mt-4">
-              <FloatingPrompts 
-                onPromptClick={onPromptClick}
-                profileContext={profileContext}
-                currentSection={currentSection}
-              />
+          {/* Issue-based Prompts for Improve Mode */}
+          {improvePrompts && improvePrompts.length > 0 && onPromptClick ? (
+            <div className="w-full max-w-md mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {improvePrompts.map((item, index) => (
+                  <motion.button
+                    key={index}
+                    onClick={() => onPromptClick(item.prompt)}
+                    className="relative text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all duration-200 group"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.08, type: "spring", stiffness: 300, damping: 24 }}
+                  >
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors block leading-snug">
+                      {item.label}
+                    </span>
+                  </motion.button>
+                ))}
+              </div>
             </div>
+          ) : (
+            /* Default Floating Prompts for non-improve modes */
+            onPromptClick && (
+              <div className="w-full max-w-md mt-4">
+                <FloatingPrompts 
+                  onPromptClick={onPromptClick}
+                  profileContext={profileContext}
+                  currentSection={currentSection}
+                />
+              </div>
+            )
           )}
         </div>
       )}

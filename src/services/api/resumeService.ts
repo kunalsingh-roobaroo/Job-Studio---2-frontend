@@ -141,12 +141,16 @@ export async function getResume(resumeId: string): Promise<ResumeItem> {
  * Returns profile data immediately, call extractLinkedInFromUrl for full audit
  */
 export async function fetchLinkedInProfile(
-  linkedinUrl: string
+  linkedinUrl: string,
+  options?: {
+    serviceType?: 'review' | 'improve' | 'create';
+  }
 ): Promise<{ projectId: string; profile: ParsedProfile }> {
   const result = await apiClient.post<{ id: string; profile: any }>(
     '/linkedin/fetch-profile',
     {
       linkedin_url: linkedinUrl,
+      service_type: options?.serviceType || 'review',
     },
     { timeout: 30000 } // 30 seconds - just Unipile fetch
   );

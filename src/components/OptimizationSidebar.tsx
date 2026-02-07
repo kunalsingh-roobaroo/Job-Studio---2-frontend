@@ -19,6 +19,7 @@ interface OptimizationSidebarProps {
     isDark?: boolean
     onSelectSection?: (sectionId: string) => void
     onFix?: (itemId: string, contextMessage?: string) => void
+    workspaceMode?: "review" | "improve" | "create"
 }
 
 // ==================== Data Types & Adapter ====================
@@ -954,7 +955,8 @@ export function OptimizationSidebar({
     totalScore,
     checklist,
     onSelectSection,
-    onFix
+    onFix,
+    workspaceMode
 }: OptimizationSidebarProps) {
     const items = useSidebarData(auditData, checklist)
     const [selectedId, setSelectedId] = React.useState<string | null>(null)
@@ -977,6 +979,17 @@ export function OptimizationSidebar({
         }
         return item
     }, [items, selectedId])
+
+    const quickSummaryText = React.useMemo(() => {
+        if (!selectedItem?.breakdown) return null
+
+        if (workspaceMode === "create" && ["profile_photo", "photo", "banner"].includes(selectedItem.id)) {
+            const sectionLabel = selectedItem.id === "banner" ? "banner image" : "profile photo"
+            return `Since we're building your profile from a resume, we're unable to evaluate your ${sectionLabel}. Check the Best Practices and Checklist tabs for expert guidance on choosing a ${sectionLabel} that makes a strong first impression.`
+        }
+
+        return selectedItem.breakdown
+    }, [selectedItem?.breakdown, selectedItem?.id, workspaceMode])
 
     const handleItemClick = (id: string) => {
         setSelectedId(id)
@@ -1305,7 +1318,7 @@ export function OptimizationSidebar({
                                     <div className="space-y-6">
                                     
                                     {/* Summary Section - High-level overview only */}
-                                    {selectedItem?.breakdown && (
+                                    {quickSummaryText && (
                                         <div className="bg-[#FAFAFA] rounded-[20px] p-5 border border-[#F3F4F6]">
                                             <div className="flex items-start gap-3">
                                                 <div className="w-10 h-10 rounded-2xl bg-white border border-[#F3F4F6] flex items-center justify-center flex-shrink-0">
@@ -1316,7 +1329,7 @@ export function OptimizationSidebar({
                                                         Quick Summary
                                                     </h4>
                                                     <p className="text-[14px] text-[#4B5563] leading-relaxed">
-                                                        {selectedItem.breakdown}
+                                                        {quickSummaryText}
                                                     </p>
                                                 </div>
                                             </div>

@@ -81,6 +81,7 @@ export interface ResumeItemSummary {
   createdAt: number;
   updatedAt: number;
   name?: string | null;
+  serviceType?: string | null;
 }
 
 // Reuse existing JobDetails interface from frontend UI types for nested job details

@@ -2,7 +2,7 @@ import * as React from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuthContext } from "@/auth/context"
 import { useTheme } from "@/contexts/ThemeContext"
-import { Sparkles, Search, TrendingUp, ArrowRight, ChevronRight, Loader2, Paperclip } from "lucide-react"
+import { Sparkles, Search, TrendingUp, ArrowRight, ChevronRight, Loader2, Paperclip, ClipboardCheck, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import resumeService from "@/services/api/resumeService"
 import { useApp } from "@/contexts/AppContext"
@@ -63,9 +63,14 @@ export default function LinkedInLanding() {
           const isLinkedInAnalysis = r.name && !r.name.includes('.pdf') && !r.name.includes('.docx')
           
           if (isLinkedInAnalysis) {
+            // Determine session type from serviceType field, or default to "review"
+            const sessionType = (r.serviceType === "create" || r.serviceType === "improve") 
+              ? r.serviceType 
+              : "review" as const
+            
             linkedInSessions.push({
               id: r.id,
-              type: "review",
+              type: sessionType,
               candidateName: r.name,
               lastEdited: formatTimestamp(r.updatedAt),
               score: undefined, // Score will be loaded when they click
@@ -108,9 +113,14 @@ export default function LinkedInLanding() {
                   (audit as any).optimizationReport?.totalScore ||
                   undefined
                 
+                // Determine session type from serviceType
+                const sessionType = ((fullResume as any).serviceType === "create" || (fullResume as any).serviceType === "improve") 
+                  ? (fullResume as any).serviceType 
+                  : "review" as const
+                
                 linkedInSessions.push({
                   id: r.id,
-                  type: "review",
+                  type: sessionType,
                   candidateName,
                   lastEdited: formatTimestamp(r.updatedAt),
                   score: score,
@@ -160,12 +170,20 @@ export default function LinkedInLanding() {
       setIsUploading(true)
 
       if (selectedMode === "create") {
+        setIsExtracting(true)
+        setLoadingMessage("Transforming your resume into a LinkedIn profile...")
+        // Upload resume and create project - same workspace for all modes
         const result = await resumeService.uploadAndCreateLinkedInProject(file)
         setParsedProfile(result.parsedProfile)
-        navigate(`/linkedin/create/${result.projectId}`, {
-          state: { startMode: "create" }
+        navigate(`/linkedin/workspace/${result.projectId}`, {
+          state: {
+            parsedProfile: result.parsedProfile,
+            startMode: "create",
+            isLoadingAudit: true,
+          }
         })
       } else {
+        setIsExtracting(true)
         const result = await resumeService.reviewLinkedInProfile(file)
         setLinkedInAudit(result.audit)
         navigate(`/linkedin/workspace/${result.projectId}`, {
@@ -179,6 +197,7 @@ export default function LinkedInLanding() {
       console.error("Upload failed:", error)
     } finally {
       setIsUploading(false)
+      setIsExtracting(false)
     }
   }
 
@@ -194,7 +213,9 @@ export default function LinkedInLanding() {
         setIsExtracting(true)
         setLoadingMessage("Fetching your LinkedIn profile...")
         
-        const profileResult = await resumeService.fetchLinkedInProfile(linkedInUrl.trim())
+        const profileResult = await resumeService.fetchLinkedInProfile(linkedInUrl.trim(), {
+          serviceType: selectedMode
+        })
         setParsedProfile(profileResult.profile)
         
         navigate(`/linkedin/workspace/${profileResult.projectId}`, {
@@ -225,14 +246,14 @@ export default function LinkedInLanding() {
   const actionCards = [
     {
       id: "create" as const,
-      icon: Sparkles,
+      icon: FileText,
       title: "Create from Resume",
       description: "Build a perfect profile in minutes",
       badge: null,
     },
     {
       id: "review" as const,
-      icon: Search,
+      icon: ClipboardCheck,
       title: "Review Profile",
       description: "Get an instant optimization score",
       badge: "Popular",
@@ -317,12 +338,7 @@ export default function LinkedInLanding() {
                 )}
 
                 {/* Icon container - 48x48 anchored */}
-                <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-300",
-                  isSelected
-                    ? "bg-[#DFC4FF]"
-                    : isDark ? "bg-[#1C1C1F] group-hover:bg-[#815FAA]/10" : "bg-[#DFC4FF]/50"
-                )}>
+                <div className="w-12 h-12 flex items-center justify-center flex-shrink-0 transition-all duration-300">
                   <Icon className={cn(
                     "w-5 h-5 transition-colors duration-300",
                     isSelected ? "text-[#684C8A]" : (isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")
@@ -475,18 +491,21 @@ export default function LinkedInLanding() {
                     className={cn(
                       "relative rounded-[24px] text-left transition-all duration-200",
                       "flex sm:flex-col items-center sm:items-stretch gap-4 sm:gap-0",
-                      "p-4 sm:p-5 h-auto sm:h-[165px] border",
+                      "p-4 sm:p-4 h-auto sm:h-[150px] border",
                       isDark
                         ? "bg-[#111113] border-[#27272A] hover:border-[#3F3F46]"
                         : "bg-white border-[#E5E7EB] hover:border-[#D1D5DB]"
                     )}
                   >
-                    {/* Icon */}
-                    <div className={cn(
-                      "w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0",
-                      isDark ? "bg-[#815FAA]/10" : "bg-[#DFC4FF]/50"
-                    )}>
-                      <Search className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
+                    {/* Icon - same purple palette for all types */}
+                    <div className="w-11 h-11 flex items-center justify-center flex-shrink-0">
+                      {session.type === "create" ? (
+                        <FileText className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
+                      ) : session.type === "improve" ? (
+                        <TrendingUp className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
+                      ) : (
+                        <ClipboardCheck className={cn("w-4 h-4", isDark ? "text-[#BC9CE2]" : "text-[#815FAA]")} />
+                      )}
                     </div>
 
                     {/* Content */}
@@ -503,7 +522,7 @@ export default function LinkedInLanding() {
                           "text-[12px] line-clamp-1",
                           isDark ? "text-[#71717A]" : "text-[#9CA3AF]"
                         )}>
-                          Profile Review • {session.lastEdited}
+                          {session.type === "create" ? "Profile Creation" : session.type === "improve" ? "Profile Improvement" : "Profile Review"} • {session.lastEdited}
                         </p>
                       </div>
 

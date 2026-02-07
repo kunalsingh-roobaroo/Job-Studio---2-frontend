@@ -143,9 +143,10 @@ interface ChatShellProps {
   }
   currentSection?: string | null
   projectId?: string // Optional: pass project ID directly
+  improvePrompts?: Array<{ label: string; prompt: string }> // Specific issue-based prompts for improve mode
 }
 
-export function ChatShell({ onClose, initialMessage, onInitialMessageSent, profileContext, currentSection, projectId: propProjectId }: ChatShellProps) {
+export function ChatShell({ onClose, initialMessage, onInitialMessageSent, profileContext, currentSection, projectId: propProjectId, improvePrompts }: ChatShellProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -430,6 +431,7 @@ export function ChatShell({ onClose, initialMessage, onInitialMessageSent, profi
         onPromptClick={sendMessage}
         profileContext={profileContext}
         currentSection={currentSection}
+        improvePrompts={improvePrompts}
       />
 
       <Composer

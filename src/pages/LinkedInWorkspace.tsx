@@ -15,6 +15,8 @@ import {
   Award,
   FileText,
   Eye,
+  BarChart3,
+  User as UserIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,7 +30,6 @@ import type {
   UnifiedLinkedInAudit,
   ParsedProfile
 } from "@/services/api/types"
-import { CreationCard } from "@/components/CreationCard"
 import { ChatShell } from "@/components/chat/ChatShell"
 import { OptimizationSidebar } from "@/components/OptimizationSidebar"
 import { OptimizationSidebarSkeleton } from "@/components/OptimizationSidebarSkeleton"
@@ -40,7 +41,7 @@ import { convertAuditToUnified } from "@/utils/auditAdapter"
 type WorkspaceMode = "review" | "improve" | "create"
 type RightPanelState = "preview" | "copilot"
 type PreviewMode = "existing" | "improved"
-type CreateViewMode = "sections" | "overview"
+type MobileTab = "score" | "preview"
 
 // AboutSection component with Read More functionality
 function AboutSection({ content, isDark }: { content: string; isDark: boolean }) {
@@ -118,18 +119,17 @@ function LinkedInWorkspace() {
   const [workspaceMode] = React.useState<WorkspaceMode>(
     navState?.startMode || "review"
   )
-  const [rightPanelState, setRightPanelState] = React.useState<RightPanelState>("preview")
+  const [rightPanelState, setRightPanelState] = React.useState<RightPanelState>(
+    navState?.startMode === "improve" ? "copilot" : "preview"
+  )
   const [previewMode, setPreviewMode] = React.useState<PreviewMode>("existing")
-  const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["headline"]))
+  const [mobileTab, setMobileTab] = React.useState<MobileTab>("score")
+  const [mobileCopilotOpen, setMobileCopilotOpen] = React.useState(false)
   const [_copilotContext, setCopilotContext] = React.useState<string>("")
   const [_copilotSectionId, setCopilotSectionId] = React.useState<string | null>(null)
   const [copilotInitialMessage, setCopilotInitialMessage] = React.useState<string | undefined>(undefined)
-
-
-  const [createViewMode, setCreateViewMode] = React.useState<CreateViewMode>("sections")
-  const [editingSection, setEditingSection] = React.useState<string | null>(null)
-  const [editedContent, setEditedContent] = React.useState<Record<string, string>>({})
-  const [copiedSection, setCopiedSection] = React.useState<string | null>(null)
+  const [improvePrompts, setImprovePrompts] = React.useState<Array<{ label: string; prompt: string }>>([])
+  const improvePromptsBuiltRef = React.useRef(false)
 
   const [isLoading, setIsLoading] = React.useState(true)
   const [isAuditLoading, setIsAuditLoading] = React.useState(false)
@@ -334,22 +334,38 @@ function LinkedInWorkspace() {
 
         // Handle audit data based on mode (this happens in background)
         if (workspaceMode === "create") {
-          // In CREATE mode, only use audit if it matches the current profile
-          if (resume.linkedInAudit && resume.parsedProfile) {
-            const auditName = resume.linkedInAudit.userProfile?.fullName
-            const profileName = resume.parsedProfile.basics?.name
-
-            if (auditName && profileName && auditName.toLowerCase().includes(profileName.toLowerCase())) {
-              setAuditData(resume.linkedInAudit)
-              setLinkedInAudit(resume.linkedInAudit)
-            } else {
-              setAuditData(null)
-            }
+          // In CREATE mode, use existing audit or trigger one
+          if (resume.linkedInAudit) {
+            setAuditData(resume.linkedInAudit)
+            setLinkedInAudit(resume.linkedInAudit)
+            setIsLoading(false)
+          } else if (resume.parsedProfile && resumeId && !extractionStartedRef.current) {
+            // No audit yet - run audit in background (same as review/improve)
+            extractionStartedRef.current = true
+            setIsLoading(false)
+            setIsAuditLoading(true)
+            
+            console.log('Starting async audit for create mode project:', resumeId)
+            resumeService.runLinkedInAudit(resumeId, {
+              onProgress: (progress) => {
+                console.log('Create mode audit progress:', progress)
+              }
+            })
+              .then(result => {
+                console.log('Create mode audit completed')
+                setAuditData(result.audit)
+                setLinkedInAudit(result.audit)
+              })
+              .catch(err => {
+                console.error("Failed to generate audit for create mode:", err)
+              })
+              .finally(() => {
+                setIsAuditLoading(false)
+              })
           } else {
             setAuditData(null)
+            setIsLoading(false)
           }
-          // Show UI for create mode
-          setIsLoading(false)
         } else {
           // Review/Improve modes - fetch or use existing audit
           if (resume.linkedInAudit) {
@@ -547,15 +563,77 @@ function LinkedInWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeId, navLinkedInUrl, navHasAudit, navIsLoadingAudit, navHasParsedProfile])
 
-  const toggleSection = (sectionId: string) => {
-    const newExpanded = new Set(expandedSections)
-    if (newExpanded.has(sectionId)) {
-      newExpanded.delete(sectionId)
-    } else {
-      newExpanded.add(sectionId)
+  // Build specific improvement prompts from real audit data for improve mode
+  React.useEffect(() => {
+    if (workspaceMode !== "improve" || !auditData || improvePromptsBuiltRef.current) return
+    improvePromptsBuiltRef.current = true
+
+    try {
+      const unified = convertAuditToUnified(auditData)
+      const checklist = unified.optimizationReport.checklist || []
+      
+      // Find failing items grouped by category (after conversion: pass | warning | critical)
+      const failingItems = checklist.filter(
+        (item: any) => item.status === 'critical' || item.status === 'warning'
+      )
+      
+      // Group by category, pick the most impactful issue per category
+      const issuesByCategory: Record<string, { title: string; count: number }> = {}
+      for (const item of failingItems) {
+        const cat = item.category || 'General'
+        if (!issuesByCategory[cat]) {
+          issuesByCategory[cat] = { title: item.title, count: 0 }
+        }
+        issuesByCategory[cat].count++
+      }
+      
+      // Build 4 specific prompts from real issues
+      const prompts: Array<{ label: string; prompt: string }> = []
+      
+      const categoryEntries = Object.entries(issuesByCategory)
+      
+      for (const [category, info] of categoryEntries.slice(0, 4)) {
+        const issuesInCat = failingItems.filter((item: any) => (item.category || 'General') === category)
+        const issueList = issuesInCat.map((item: any) => item.title).join(', ')
+        
+        prompts.push({
+          label: `Fix my ${category} (${info.count} issue${info.count > 1 ? 's' : ''})`,
+          prompt: `My ${category} section has these issues: ${issueList}. Please give me specific, rewritten content I can copy-paste to fix these problems. Show me exactly what to change.`,
+        })
+      }
+      
+      // If we have fewer than 4 category-based prompts, add general ones
+      if (prompts.length < 4) {
+        const totalScore = unified.optimizationReport.totalScore
+        prompts.push({
+          label: `Boost my score from ${totalScore} to 90+`,
+          prompt: `My profile scored ${totalScore}/100. What are the top 3 highest-impact changes I can make right now to get my score above 90? Give me specific, actionable steps with example content.`,
+        })
+      }
+      if (prompts.length < 4) {
+        prompts.push({
+          label: 'Rewrite my headline for more visibility',
+          prompt: 'Analyze my current LinkedIn headline and rewrite it to be more keyword-rich, compelling, and optimized for recruiter searches. Give me 3 headline options.',
+        })
+      }
+      if (prompts.length < 4) {
+        prompts.push({
+          label: 'Make my About section stand out',
+          prompt: 'Rewrite my LinkedIn About section to be more engaging, keyword-rich, and compelling. Write it in first person with a strong hook, key achievements, and a call-to-action.',
+        })
+      }
+      
+      setImprovePrompts(prompts.slice(0, 4))
+    } catch (e) {
+      console.warn('Failed to build improve prompts from audit data:', e)
+      setImprovePrompts([
+        { label: 'Fix my headline for more visibility', prompt: 'Analyze my LinkedIn headline and give me 3 optimized alternatives that are keyword-rich and compelling for recruiter searches.' },
+        { label: 'Rewrite my About section', prompt: 'Rewrite my LinkedIn About section to be more engaging with a strong hook, key achievements, and a call-to-action. Write in first person.' },
+        { label: 'Improve my experience descriptions', prompt: 'Review my experience section and rewrite the descriptions with quantified achievements, action verbs, and relevant keywords.' },
+        { label: 'Optimize my skills section', prompt: 'Analyze my skills section and suggest which skills to add, remove, or reorder for maximum visibility in my industry.' },
+      ])
     }
-    setExpandedSections(newExpanded)
-  }
+  }, [workspaceMode, auditData])
 
   const handleDiscussWithCopilot = (sectionTitle: string, _prompts: string[] = [], _isReviewMode: boolean = true, sectionId?: string, initialMessage?: string) => {
     console.log('handleDiscussWithCopilot called:', { sectionTitle, sectionId, initialMessage })
@@ -574,32 +652,6 @@ function LinkedInWorkspace() {
       console.log('No initial message')
       setCopilotInitialMessage(undefined)
     }
-  }
-
-  const handleCopy = (text: string, sectionId: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedSection(sectionId)
-    setTimeout(() => setCopiedSection(null), 2000)
-  }
-
-
-
-
-
-  const handleStartEdit = (sectionId: string, currentContent: string) => {
-    setEditingSection(sectionId)
-    setEditedContent(prev => ({
-      ...prev,
-      [sectionId]: prev[sectionId] || currentContent
-    }))
-  }
-
-  const handleSaveEdit = (_sectionId: string) => {
-    setEditingSection(null)
-  }
-
-  const handleCancelEdit = (_sectionId: string) => {
-    setEditingSection(null)
   }
 
   if (isLoading) {
@@ -642,32 +694,32 @@ function LinkedInWorkspace() {
   // Command Header Component
   const CommandHeader = () => (
     <div className={cn(
-      "h-14 flex items-center justify-between px-6 border-b z-50 sticky top-0 backdrop-blur-md flex-shrink-0 transition-colors duration-300",
+      "h-14 flex items-center justify-between px-4 sm:px-6 border-b z-50 sticky top-0 backdrop-blur-md flex-shrink-0 transition-colors duration-300",
       isDark ? "bg-zinc-900/80 border-white/5" : "bg-white/80 border-zinc-200"
     )}>
       {/* Left: Breadcrumbs */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <div className="flex items-center gap-2 text-sm font-medium">
           <span className={cn("cursor-pointer hover:underline", isDark ? "text-zinc-500" : "text-zinc-400")} onClick={() => navigate("/linkedin")}>Home</span>
           <span className={cn(isDark ? "text-zinc-600" : "text-zinc-300")}>/</span>
-          <span className={cn(isDark ? "text-zinc-100" : "text-zinc-900")}>
-            {workspaceMode === "create" ? "Create Profile" : "Profile Review"}
+          <span className={cn("truncate max-w-[120px] sm:max-w-none", isDark ? "text-zinc-100" : "text-zinc-900")}>
+            {workspaceMode === "create" ? "Create Profile" : workspaceMode === "improve" ? "Profile Improve" : "Profile Review"}
           </span>
         </div>
-        <div className={cn("h-4 w-px", isDark ? "bg-white/10" : "bg-zinc-200")} />
+        <div className={cn("h-4 w-px hidden sm:block", isDark ? "bg-white/10" : "bg-zinc-200")} />
       </div>
 
-      {/* Center: Title */}
+      {/* Center: Title - hidden on mobile */}
       <span className={cn(
-        "text-sm font-medium",
+        "text-sm font-medium hidden sm:block",
         isDark ? "text-zinc-500" : "text-zinc-400"
       )}>
         Optimization Studio
       </span>
 
       {/* Right: Status & Actions */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <span className="relative flex h-1.5 w-1.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
@@ -678,13 +730,13 @@ function LinkedInWorkspace() {
         </div>
 
         <div className="flex items-center gap-1">
-          <button className={cn("p-2 rounded-md transition-colors", isDark ? "hover:bg-white/10 text-zinc-400" : "hover:bg-zinc-100 text-zinc-500")}>
+          <button className={cn("p-2 rounded-md transition-colors hidden sm:flex", isDark ? "hover:bg-white/10 text-zinc-400" : "hover:bg-zinc-100 text-zinc-500")}>
             <MoreHorizontal className="w-4 h-4" />
           </button>
           <button
             onClick={() => setShowResume(!showResume)}
             className={cn(
-              "p-2 rounded-md transition-colors",
+              "p-2 rounded-md transition-colors hidden sm:flex",
               showResume ? (isDark ? "bg-white/10 text-white" : "bg-zinc-100 text-zinc-900") : (isDark ? "hover:bg-white/10 text-zinc-400" : "hover:bg-zinc-100 text-zinc-500")
             )}
           >
@@ -712,20 +764,21 @@ function LinkedInWorkspace() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0 relative">
-          {/* UNIFIED OPTIMIZER - Single View */}
+          {/* UNIFIED OPTIMIZER - Single View (works for all modes: review, improve, create) */}
           {/* Show skeleton FIRST if audit is loading (even if we have profile data) */}
-          {((workspaceMode === "review" || workspaceMode === "improve") && isAuditLoading && !auditData) ? (
+          {(isAuditLoading && !auditData) ? (
             /* Show skeleton while audit is loading */
             <div className="h-full p-4 overflow-hidden">
               <OptimizationSidebarSkeleton isDark={isDark} />
             </div>
-          ) : ((workspaceMode === "review" || workspaceMode === "improve") && auditData) ? (
+          ) : (auditData) ? (
             <div className="h-full p-4 overflow-hidden">
               <OptimizationSidebar
                 totalScore={convertAuditToUnified(auditData).optimizationReport.totalScore}
                 checklist={convertAuditToUnified(auditData).optimizationReport.checklist}
                 auditData={auditData}
                 isDark={isDark}
+                workspaceMode={workspaceMode}
                 onSelectSection={(sectionId) => {
                   console.log('Section selected:', sectionId)
                   setCopilotSectionId(sectionId)
@@ -759,34 +812,6 @@ function LinkedInWorkspace() {
                   }
                 }}
               />
-            </div>
-          ) : workspaceMode === "create" && profileData ? (
-            /* CREATE MODE - Keep existing implementation */
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-              <CreateModeContent
-                profileData={profileData}
-                auditData={auditData}
-                isDark={isDark}
-                expandedSections={expandedSections}
-                toggleSection={toggleSection}
-                editingSection={editingSection}
-                editedContent={editedContent}
-                setEditedContent={setEditedContent}
-                copiedSection={copiedSection}
-                handleCopy={handleCopy}
-                handleStartEdit={handleStartEdit}
-                handleSaveEdit={handleSaveEdit}
-                handleCancelEdit={handleCancelEdit}
-                createViewMode={createViewMode}
-                setCreateViewMode={setCreateViewMode}
-                handleDiscussWithCopilot={handleDiscussWithCopilot}
-                setCopilotSectionId={setCopilotSectionId}
-              />
-            </div>
-          ) : (workspaceMode === "review" || workspaceMode === "improve") ? (
-            /* Fallback for review/improve - show skeleton while waiting */
-            <div className="h-full p-4 overflow-hidden">
-              <OptimizationSidebarSkeleton isDark={isDark} />
             </div>
           ) : (
             /* Fallback for other modes */
@@ -827,6 +852,7 @@ function LinkedInWorkspace() {
             onInitialMessageSent={() => setCopilotInitialMessage(undefined)}
             currentSection={_copilotSectionId}
             projectId={resumeId}
+            improvePrompts={workspaceMode === "improve" ? improvePrompts : undefined}
             profileContext={{
               hasHeadlineIssues: auditData ? (() => {
                 const unified = convertAuditToUnified(auditData)
@@ -856,6 +882,229 @@ function LinkedInWorkspace() {
     </div>
   )
 
+  // Mobile: open copilot as slide-over
+  const handleOpenCopilot = () => {
+    if (isMobile) {
+      setMobileCopilotOpen(true)
+    } else {
+      setRightPanelState("copilot")
+    }
+  }
+
+  const handleCloseCopilot = () => {
+    if (isMobile) {
+      setMobileCopilotOpen(false)
+    } else {
+      setRightPanelState("preview")
+    }
+  }
+
+  // On mobile, when "Improve with Copilot" or "Ask AI" is triggered, open mobile copilot
+  const originalHandleDiscuss = handleDiscussWithCopilot
+  const mobileAwareDiscuss = (sectionTitle: string, prompts: string[] = [], isReviewMode: boolean = true, sectionId?: string, initialMessage?: string) => {
+    originalHandleDiscuss(sectionTitle, prompts, isReviewMode, sectionId, initialMessage)
+    if (isMobile) {
+      setMobileCopilotOpen(true)
+    }
+  }
+
+  if (isMobile) {
+    return (
+      <div className={cn(
+        "h-screen flex flex-col overflow-hidden font-['Inter',sans-serif]",
+        isDark ? "bg-[#0C0C0C]" : "bg-gray-50"
+      )}>
+        <CommandHeader />
+
+        {/* Mobile Tab Switcher */}
+        <div className={cn(
+          "flex items-center px-4 py-2 border-b flex-shrink-0",
+          isDark ? "bg-zinc-900/50 border-white/5" : "bg-white border-zinc-200"
+        )}>
+          <div className={cn(
+            "inline-flex w-full rounded-xl p-1",
+            isDark ? "bg-zinc-800" : "bg-[#F3F4F6]"
+          )}>
+            <button
+              onClick={() => setMobileTab("score")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+                mobileTab === "score"
+                  ? isDark ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-gray-900 shadow-sm"
+                  : isDark ? "text-zinc-400" : "text-gray-500"
+              )}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Score
+            </button>
+            <button
+              onClick={() => setMobileTab("preview")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+                mobileTab === "preview"
+                  ? isDark ? "bg-zinc-700 text-white shadow-sm" : "bg-white text-gray-900 shadow-sm"
+                  : isDark ? "text-zinc-400" : "text-gray-500"
+              )}
+            >
+              <UserIcon className="w-4 h-4" />
+              Preview
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Panel Content */}
+        <div className="flex-1 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {mobileTab === "score" ? (
+              <motion.div
+                key="score"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                {/* Reuse leftContent but override onFix to use mobile copilot */}
+                <div className={cn(
+                  "h-full flex flex-col overflow-hidden",
+                  isDark ? "bg-[#0C0C0C]" : "bg-[#F4F6F8]"
+                )}>
+                  <div className="flex-1 flex flex-col min-h-0 relative">
+                    {(isAuditLoading && !auditData) ? (
+                      <div className="h-full p-4 overflow-hidden">
+                        <OptimizationSidebarSkeleton isDark={isDark} />
+                      </div>
+                    ) : (auditData) ? (
+                      <div className="h-full p-4 overflow-hidden">
+                        <OptimizationSidebar
+                          totalScore={convertAuditToUnified(auditData).optimizationReport.totalScore}
+                          checklist={convertAuditToUnified(auditData).optimizationReport.checklist}
+                          auditData={auditData}
+                          isDark={isDark}
+                          workspaceMode={workspaceMode}
+                          onSelectSection={(sectionId) => setCopilotSectionId(sectionId)}
+                          onFix={(itemId, contextMessage) => {
+                            if (contextMessage) {
+                              mobileAwareDiscuss(itemId, [], false, itemId, contextMessage)
+                              return
+                            }
+                            const unified = convertAuditToUnified(auditData)
+                            const item = unified.optimizationReport.checklist.find(i => i.id === itemId)
+                            if (item) {
+                              mobileAwareDiscuss(item.title, [], false, item.category.toLowerCase(), `Please help me fix: ${item.title}`)
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center p-8">
+                        <FallbackContent
+                          isDark={isDark}
+                          resumeId={resumeId}
+                          setIsLoading={setIsLoading}
+                          setAuditData={setAuditData}
+                          setLinkedInAudit={setLinkedInAudit}
+                          setError={setError}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="preview"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                <PreviewPanel
+                  isDark={isDark}
+                  previewMode={previewMode}
+                  setPreviewMode={setPreviewMode}
+                  profileData={profileData}
+                  auditData={auditData}
+                  userName={userName}
+                  workspaceMode={workspaceMode}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Mobile Copilot Slide-over */}
+        <AnimatePresence>
+          {mobileCopilotOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/40 z-40"
+                onClick={handleCloseCopilot}
+              />
+              {/* Copilot Panel */}
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className={cn(
+                  "fixed top-0 right-0 bottom-0 w-[85vw] max-w-[400px] z-50 flex flex-col shadow-2xl",
+                  isDark ? "bg-[#0C0C0C]" : "bg-stone-50"
+                )}
+              >
+                <ChatShell
+                  onClose={handleCloseCopilot}
+                  initialMessage={copilotInitialMessage}
+                  onInitialMessageSent={() => setCopilotInitialMessage(undefined)}
+                  currentSection={_copilotSectionId}
+                  projectId={resumeId}
+                  improvePrompts={workspaceMode === "improve" ? improvePrompts : undefined}
+                  profileContext={{
+                    hasHeadlineIssues: auditData ? (() => {
+                      const unified = convertAuditToUnified(auditData)
+                      const headlineBanner = unified.checklistAudit?.banners?.find(b => b.id === 'headline')
+                      return headlineBanner ? headlineBanner.checklistItems.some(item => item.status !== 'pass') : false
+                    })() : false,
+                    hasAboutIssues: auditData ? (() => {
+                      const unified = convertAuditToUnified(auditData)
+                      const aboutBanner = unified.checklistAudit?.banners?.find(b => b.id === 'about')
+                      return aboutBanner ? aboutBanner.checklistItems.some(item => item.status !== 'pass') : false
+                    })() : false,
+                    hasExperienceIssues: auditData ? (() => {
+                      const unified = convertAuditToUnified(auditData)
+                      const expBanner = unified.checklistAudit?.banners?.find(b => b.id === 'experience')
+                      return expBanner ? expBanner.checklistItems.some(item => item.status !== 'pass') : false
+                    })() : false,
+                    hasSkillsIssues: auditData ? (() => {
+                      const unified = convertAuditToUnified(auditData)
+                      const skillsBanner = unified.checklistAudit?.banners?.find(b => b.id === 'skills')
+                      return skillsBanner ? skillsBanner.checklistItems.some(item => item.status !== 'pass') : false
+                    })() : false,
+                    overallScore: auditData ? convertAuditToUnified(auditData).optimizationReport.totalScore : undefined
+                  }}
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile FAB */}
+        {!mobileCopilotOpen && (
+          <AskAIButton
+            onClick={handleOpenCopilot}
+            isDark={isDark}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // Desktop layout
   return (
     <div className={cn(
       "h-screen flex flex-col overflow-hidden font-['Inter',sans-serif]",
@@ -864,7 +1113,7 @@ function LinkedInWorkspace() {
       <CommandHeader />
 
       <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction={isMobile ? "vertical" : "horizontal"} className="h-full">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
           <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
             <div className="h-full flex flex-col">
               {leftContent}
@@ -883,7 +1132,7 @@ function LinkedInWorkspace() {
 
       {rightPanelState !== "copilot" && (
         <AskAIButton
-          onClick={() => setRightPanelState("copilot")}
+          onClick={handleOpenCopilot}
           isDark={isDark}
         />
       )}
@@ -892,209 +1141,6 @@ function LinkedInWorkspace() {
 }
 
 // Sub-components for cleaner code
-
-// Create Mode Content Component - For users creating LinkedIn from resume
-function CreateModeContent({
-  profileData,
-  auditData,
-  isDark,
-  expandedSections,
-  toggleSection,
-  editingSection,
-  editedContent,
-  setEditedContent,
-  copiedSection,
-  handleCopy,
-  handleStartEdit,
-  handleSaveEdit,
-  handleCancelEdit,
-  createViewMode,
-  setCreateViewMode,
-  handleDiscussWithCopilot,
-  setCopilotSectionId,
-}: {
-  profileData: ParsedProfile
-  auditData: LinkedInAudit | UnifiedLinkedInAudit | null
-  isDark: boolean
-  expandedSections: Set<string>
-  toggleSection: (id: string) => void
-  editingSection: string | null
-  editedContent: Record<string, string>
-  setEditedContent: React.Dispatch<React.SetStateAction<Record<string, string>>>
-  copiedSection: string | null
-  handleCopy: (text: string, id: string) => void
-  handleStartEdit: (id: string, content: string) => void
-  handleSaveEdit: (id: string) => void
-  handleCancelEdit: (id: string) => void
-  createViewMode: CreateViewMode
-  setCreateViewMode: (mode: CreateViewMode) => void
-  handleDiscussWithCopilot: (title: string, prompts: string[], isReview: boolean, sectionId?: string, initialMessage?: string) => void
-  setCopilotSectionId: (id: string | null) => void
-}) {
-  // Build sections from parsed profile
-  const sections = [
-    {
-      id: "headline",
-      title: "Headline",
-      content: profileData.basics?.headline || `${profileData.basics?.name || 'Professional'} | ${profileData.experience?.[0]?.role || 'Your Role'}`,
-    },
-    {
-      id: "about",
-      title: "About",
-      content: profileData.basics?.about || "Your professional summary will appear here based on your resume.",
-    },
-    ...(profileData.experience || []).map((exp, i) => ({
-      id: `experience-${i}`,
-      title: `Experience: ${exp.role || 'Position'} at ${exp.company}`,
-      content: exp.description || 'Experience details from your resume.',
-    })),
-    ...(profileData.education || []).map((edu, i) => ({
-      id: `education-${i}`,
-      title: `Education: ${edu.institution}`,
-      content: `${edu.degree}${edu.field ? ` in ${edu.field}` : ''}${edu.startDate || edu.endDate ? ` (${edu.startDate || ''} - ${edu.endDate || 'Present'})` : ''}`,
-    })),
-    {
-      id: "skills",
-      title: "Skills",
-      content: profileData.skills?.join(', ') || "Your skills will be listed here.",
-    },
-  ]
-
-  const unifiedAudit = auditData ? convertAuditToUnified(auditData) : null
-
-  return (
-    <div className="space-y-4">
-      {/* View Mode Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className={cn("text-lg font-semibold", isDark ? "text-white" : "text-[#0F172A]")}>
-          Your LinkedIn Profile
-        </h3>
-        <div className="inline-flex rounded-full p-0.5" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }}>
-          <button
-            onClick={() => setCreateViewMode("sections")}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
-              createViewMode === "sections"
-                ? isDark ? "bg-white/10 text-white" : "bg-white text-gray-900 shadow-sm"
-                : "text-gray-400"
-            )}
-          >
-            Sections
-          </button>
-          <button
-            onClick={() => setCreateViewMode("overview")}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
-              createViewMode === "overview"
-                ? isDark ? "bg-white/10 text-white" : "bg-white text-gray-900 shadow-sm"
-                : "text-gray-400"
-            )}
-          >
-            Overview
-          </button>
-        </div>
-      </div>
-
-      {createViewMode === "sections" ? (
-        /* Sections View - Existing Implementation */
-        <>
-          <p className={cn("text-sm mb-4", isDark ? "text-gray-400" : "text-gray-600")}>
-            We've generated optimized content for your LinkedIn profile based on your resume. Edit and copy each section.
-          </p>
-
-          {sections.map((section) => (
-            <CreationCard
-              key={section.id}
-              id={section.id}
-              title={section.title}
-              content={section.content}
-              isDark={isDark}
-              isExpanded={expandedSections.has(section.id)}
-              isEditing={editingSection === section.id}
-              isCopied={copiedSection === section.id}
-              currentEditContent={editedContent[section.id] || section.content}
-              onToggle={() => toggleSection(section.id)}
-              onEditChange={(value) => setEditedContent(prev => ({ ...prev, [section.id]: value }))}
-              onSave={() => handleSaveEdit(section.id)}
-              onCancel={() => handleCancelEdit(section.id)}
-              onStartEdit={() => handleStartEdit(section.id, editedContent[section.id] || section.content)}
-              onCopy={() => handleCopy(editedContent[section.id] || section.content, section.id)}
-              onDiscuss={() => handleDiscussWithCopilot(section.title, [], false)}
-            />
-          ))}
-        </>
-      ) : (
-        /* Overview View - Show Review/Scoring */
-        unifiedAudit ? (
-          <div className="h-full p-4 overflow-hidden">
-            <OptimizationSidebar
-              totalScore={unifiedAudit.optimizationReport.totalScore}
-              checklist={unifiedAudit.optimizationReport.checklist}
-              auditData={unifiedAudit}
-              isDark={isDark}
-              onSelectSection={(sectionId) => {
-                console.log('Section selected in create mode:', sectionId)
-                setCopilotSectionId(sectionId)
-              }}
-              onFix={(itemId, contextMessage) => {
-                console.log('onFix called in create mode with:', { itemId, contextMessage })
-                
-                // If we have a context message, use it directly
-                if (contextMessage) {
-                  handleDiscussWithCopilot(
-                    itemId, // section title
-                    [],
-                    false,
-                    itemId, // section ID
-                    contextMessage
-                  )
-                  return
-                }
-                
-                // Fallback: try to find in checklist (legacy behavior)
-                const item = unifiedAudit.optimizationReport.checklist.find(i => i.id === itemId)
-                if (item) {
-                  handleDiscussWithCopilot(
-                    item.title,
-                    ["Apply this fix", "Explain more"],
-                    false,
-                    item.category.toLowerCase(),
-                    `Please help me fix: ${item.title}`
-                  )
-                }
-              }}
-            />
-          </div>
-        ) : (
-          <div
-            className={cn(
-              "rounded-[16px] p-8 text-center border",
-              isDark 
-                ? "bg-[#111113] border-[#27272A]" 
-                : "bg-white border-[#E5E7EB]"
-            )}
-          >
-            <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[#DFC4FF]/30">
-              <Sparkles className="h-8 w-8 text-[#815FAA]" />
-            </div>
-            <h3 className={cn("text-lg font-semibold mb-2", isDark ? "text-white" : "text-[#111827]")}>
-              Profile Score Not Available
-            </h3>
-            <p className={cn("text-sm mb-4 max-w-md mx-auto", isDark ? "text-[#A1A1AA]" : "text-[#6B7280]")}>
-              Your LinkedIn profile sections have been generated from your resume. To see a detailed score and feedback, we need to analyze the generated content.
-            </p>
-            <Button
-              onClick={() => setCreateViewMode("sections")}
-              className="bg-[#815FAA] hover:bg-[#684C8A] text-white rounded-full"
-            >
-              View Sections
-            </Button>
-          </div>
-        )
-      )}
-    </div>
-  )
-}
 
 // Helper to safely get improved content from either audit format
 function getImprovedContent(
@@ -1263,7 +1309,7 @@ function PreviewPanel({
                 <div className="h-32 w-full" style={{ backgroundColor: '#A0B4B7' }} />
               );
             })()}
-            <div className="px-6 -mt-20 mb-4">
+            <div className="px-6 relative" style={{ marginTop: '-48px', marginBottom: '16px' }}>
 
               {/* Profile Picture - Robust Implementation */}
               {(() => {
@@ -1281,16 +1327,16 @@ function PreviewPanel({
                   root?.profile_picture_url;
 
                 return (
-                  <>
+                  <div className="relative" style={{ width: '120px', height: '120px' }}>
                     {picUrl ? (
                       <img
                         src={picUrl}
                         alt={auditData?.userProfile?.fullName || userName}
-                        className="w-40 h-40 rounded-full border-4 object-cover background-white"
+                        className="w-[120px] h-[120px] rounded-full border-4 object-cover"
                         style={{
-                          borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
+                          borderColor: isDark ? '#1a1a1a' : '#FFFFFF',
+                          position: "relative",
                           zIndex: 10,
-                          position: "relative"
                         }}
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
@@ -1303,17 +1349,20 @@ function PreviewPanel({
                     {/* Fallback */}
                     <div
                       id="profile-fallback"
-                      className="w-40 h-40 rounded-full border-4 items-center justify-center text-4xl font-bold text-white absolute"
+                      className="w-[120px] h-[120px] rounded-full border-4 items-center justify-center text-3xl font-bold text-white"
                       style={{
                         background: 'linear-gradient(135deg, #815FAA 0%, #27AAE7 100%)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
+                        borderColor: isDark ? '#1a1a1a' : '#FFFFFF',
                         display: picUrl ? 'none' : 'flex',
-                        top: 0
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        zIndex: 10,
                       }}
                     >
                       {profileData?.basics?.name?.charAt(0) || auditData?.userProfile?.fullName?.charAt(0) || userName.charAt(0)}
                     </div>
-                  </>
+                  </div>
                 );
               })()}
             </div>
@@ -1358,7 +1407,11 @@ function PreviewPanel({
               >
                 <h3 className={cn("text-lg font-semibold mb-3", isDark ? "text-white" : "text-[#0F172A]")}>About</h3>
                 <AboutSection
-                  content={auditData?.userProfile?.about || (auditData?.userProfile as any)?.summary || "No about section found."}
+                  content={
+                    (workspaceMode === "improve" && previewMode === "improved" && auditData)
+                      ? getImprovedContent(auditData, "about", auditData?.userProfile?.about || profileData?.basics?.about)
+                      : (auditData?.userProfile?.about || (auditData?.userProfile as any)?.summary || profileData?.basics?.about || "No about section available yet.")
+                  }
                   isDark={isDark}
                 />
               </div>

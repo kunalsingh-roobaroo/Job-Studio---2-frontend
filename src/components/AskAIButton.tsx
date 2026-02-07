@@ -40,8 +40,8 @@ export function AskAIButton({ onClick, isDark = false }: AskAIButtonProps) {
                 delay: 0.3 
             }}
             className={cn(
-                "fixed bottom-8 right-8 z-50",
-                "flex items-center gap-3 px-6 py-4 rounded-full",
+                "fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50",
+                "flex items-center gap-2 sm:gap-3 px-4 py-3 sm:px-6 sm:py-4 rounded-full",
                 "bg-gradient-to-r from-[#815FAA] to-[#684C8A] text-white",
                 "shadow-[0_20px_50px_rgba(129,95,170,0.35)]",
                 "transition-shadow duration-300",
@@ -57,10 +57,10 @@ export function AskAIButton({ onClick, isDark = false }: AskAIButtonProps) {
 
             {/* Text content */}
             <div className="flex flex-col items-start">
-                <span className="text-[15px] font-semibold tracking-tight">
+                <span className="text-[13px] sm:text-[15px] font-semibold tracking-tight">
                     Ask Copilot
                 </span>
-                <span className="text-[11px] font-medium text-white/70">
+                <span className="text-[10px] sm:text-[11px] font-medium text-white/70 hidden sm:block">
                     Get instant help
                 </span>
             </div>

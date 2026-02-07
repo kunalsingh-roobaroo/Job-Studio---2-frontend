@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Sparkles, TrendingUp, Target, Zap, CornerDownLeft } from "lucide-react"
+import { Sparkles, TrendingUp, Target, Zap } from "lucide-react"
 
 interface FloatingPromptsProps {
   onPromptClick: (prompt: string) => void
@@ -147,8 +147,6 @@ export function FloatingPrompts({ onPromptClick, profileContext, currentSection 
 
   if (currentPrompts.length === 0) return null
 
-  const icons = [Sparkles, TrendingUp, Target, Zap]
-
   return (
     <div className="mb-8 max-w-2xl mx-auto">
       <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
@@ -156,29 +154,22 @@ export function FloatingPrompts({ onPromptClick, profileContext, currentSection 
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {currentPrompts.map((prompt, index) => {
-          const Icon = icons[index % icons.length]
-          return (
-            <motion.button
-              key={index}
-              onClick={() => onPromptClick(prompt)}
-              className="relative text-left p-4 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all duration-200 group"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <div className="flex items-start gap-3">
-                <Icon className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors flex-1 pr-6">
-                  {prompt}
-                </span>
-              </div>
-              <CornerDownLeft className="absolute bottom-3 right-3 w-3 h-3 text-slate-300 group-hover:text-slate-400 transition-colors" />
-            </motion.button>
-          )
-        })}
+        {currentPrompts.map((prompt, index) => (
+          <motion.button
+            key={index}
+            onClick={() => onPromptClick(prompt)}
+            className="relative text-center p-4 rounded-xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all duration-200 group"
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+          >
+            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors block">
+              {prompt}
+            </span>
+          </motion.button>
+        ))}
       </div>
     </div>
   )
